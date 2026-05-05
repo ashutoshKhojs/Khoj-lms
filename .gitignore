@@ -1,8 +1,20 @@
 HELP.md
+
+# Build output
 target/
-.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# Application config (ignore sensitive/local configs)
+src/main/resources/application.yaml
+src/main/resources/application.properties
+
+# Allow example config files
+!src/main/resources/application-example.yaml
+!src/main/resources/application-example.properties
 
 ### STS ###
 .apt_generated
@@ -14,7 +26,7 @@ target/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea
+.idea/
 *.iws
 *.iml
 *.ipr
@@ -25,9 +37,20 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
+/build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
 ### VS Code ###
 .vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Env files
+.env
+.env.*
