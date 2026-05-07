@@ -16,7 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping(ApiRoutes.BASE + ApiRoutes.Auth.BASE)
+@RequestMapping(ApiRoutes.Auth.BASE)
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Register, login, token refresh, email verification")
 public class AuthController {

@@ -29,7 +29,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmailWithRoles(email)
+        User user = userRepository.findWithRolesByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> new UsernameNotFoundException(
                         "User not found with email: " + email));
 
@@ -43,7 +43,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
-                .password(user.getPasswordHash() != null ? user.getPasswordHash() : "")
+                .password(user.getPassword() != null ? user.getPassword() : "")
                 .authorities(authorities)
                 .accountExpired(false)
                 .credentialsExpired(false)

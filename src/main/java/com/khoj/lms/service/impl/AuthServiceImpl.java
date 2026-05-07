@@ -80,7 +80,7 @@ public class AuthServiceImpl implements AuthService {
                 .firstName(capitalise(request.getFirstName()))
                 .lastName(capitalise(request.getLastName()))
                 .email(request.getEmail().toLowerCase())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
+                .password(passwordEncoder.encode(request.getPassword()))
                 .phoneNumber(request.getPhoneNumber())
                 .authProvider(AuthProvider.LOCAL)
                 .isActive(true)
@@ -352,7 +352,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BadRequestException("Reset token has expired. Please request a new one.");
         }
 
-        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         user.setResetToken(null);
         user.setResetTokenExpiresAt(null);
         user.resetFailedAttempts();
@@ -433,7 +433,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse.UserSummary getCurrentUser(String email) {
-        User user = userRepository.findByEmailWithRoles(email)
+        User user = userRepository.findWithRolesByEmailAndIsDeletedFalse(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
 
         Set<RoleName> roleNames = user.getRoles().stream()

@@ -61,8 +61,8 @@ public class User extends BaseEntity {
      * Hashed password (BCrypt).
      * Nullable for OAuth users (Google login won't have a password).
      */
-    @Column(name = "password_hash", length = 255)
-    private String passwordHash;
+    @Column(name = "password", length = 255)
+    private String password;
 
     @Column(name = "phone_number", length = 15)
     private String phoneNumber;
@@ -127,7 +127,7 @@ public class User extends BaseEntity {
     // OTP Verification (Phase 1 — email OTP)
     // ─────────────────────────────────────────
 
-    @Column(name = "otp_code", length = 10)
+    @Column(name = "otp_code", length = 255)
     private String otpCode;
 
     @Column(name = "otp_expires_at")
@@ -165,7 +165,7 @@ public class User extends BaseEntity {
     // Roles (Many-to-Many)
     // ─────────────────────────────────────────
 
-    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
             joinColumns = @JoinColumn(name = "user_id"),
@@ -190,13 +190,24 @@ public class User extends BaseEntity {
     }
 
     public void addRole(Role role) {
+        if (this.roles == null) {
+            this.roles = new HashSet<>();
+        }
+        if (role.getUsers() == null) {
+            role.setUsers(new HashSet<>());
+        }
+
         this.roles.add(role);
         role.getUsers().add(this);
     }
 
     public void removeRole(Role role) {
-        this.roles.remove(role);
-        role.getUsers().remove(this);
+        if (this.roles != null) {
+            this.roles.remove(role);
+        }
+        if (role.getUsers() != null) {
+            role.getUsers().remove(this);
+        }
     }
 
     public boolean hasRole(String roleName) {
@@ -223,4 +234,6 @@ public class User extends BaseEntity {
     public void resetFailedAttempts() {
         this.failedLoginAttempts = 0;
     }
+
+
 }

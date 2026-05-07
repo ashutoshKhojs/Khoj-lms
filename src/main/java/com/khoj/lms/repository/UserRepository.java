@@ -14,6 +14,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByResetTokenAndIsDeletedFalse(String resetToken);
 
+    // ✅ clear naming
     @EntityGraph(attributePaths = {"roles"})
-    Optional<User> findByEmailWithRoles(String email);
+    Optional<User> findWithRolesByEmailAndIsDeletedFalse(String email);
 }
