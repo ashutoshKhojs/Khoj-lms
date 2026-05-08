@@ -6,6 +6,7 @@ import com.khoj.lms.enums.CourseStatus;
 import com.khoj.lms.exception.*;
 import com.khoj.lms.repository.*;
 import com.khoj.lms.service.CourseService;
+import com.khoj.lms.specification.CourseSpecification;
 import com.khoj.lms.util.SlugUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,15 +33,19 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<CourseSummary> getPublishedCourses(CourseFilter filter, Pageable pageable) {
-        return courseRepository.findPublished(
-                filter.getSearch(),
-                filter.getCategoryId(),
-                filter.getDifficulty(),
-                filter.getLanguage(),
-                filter.getIsFree(),
-                pageable
-        ).map(this::toSummary);
+    public Page<CourseSummary> getPublishedCourses(
+            CourseFilter filter,
+            Pageable pageable
+    ) {
+
+        return courseRepository.findAll(
+                        CourseSpecification.withFilters(
+                                filter,
+                                CourseStatus.PUBLISHED
+                        ),
+                        pageable
+                )
+                .map(this::toSummary);
     }
 
     @Override
@@ -88,12 +93,31 @@ public class CourseServiceImpl implements CourseService {
         Course course = Course.builder()
                 .title(request.getTitle())
                 .slug(slug)
+
                 .shortDescription(request.getShortDescription())
                 .description(request.getDescription())
+                .whatYouWillLearn(request.getWhatYouWillLearn())
+                .prerequisites(request.getPrerequisites())
+                .targetAudience(request.getTargetAudience())
+
+                .thumbnailUrl(request.getThumbnailUrl())
+                .previewVideoUrl(request.getPreviewVideoUrl())
+
                 .category(category)
+
+                .difficultyLevel(request.getDifficultyLevel())
+                .language(request.getLanguage())
+                .tags(request.getTags())
+
                 .instructor(instructor)
-                .status(CourseStatus.DRAFT)
+
                 .isFree(request.getIsFree())
+                .price(request.getPrice())
+
+                .hasCertificate(request.getHasCertificate())
+                .certificateThreshold(request.getCertificateThreshold())
+
+                .status(CourseStatus.DRAFT)
                 .build();
 
         course = courseRepository.save(course);
@@ -243,16 +267,49 @@ public class CourseServiceImpl implements CourseService {
                 .id(c.getId())
                 .title(c.getTitle())
                 .slug(c.getSlug())
+                .shortDescription(c.getShortDescription())
+                .thumbnailUrl(c.getThumbnailUrl())
+                .categoryName(c.getCategory().getName())
+                .difficultyLevel(c.getDifficultyLevel())
+                .language(c.getLanguage())
+                .instructorName(c.getInstructor().getFullName())
+                .isFree(c.getIsFree())
+                .price(c.getPrice())
+                .status(CourseStatus.DRAFT)
                 .build();
     }
 
     private CourseResponse toFullResponse(Course c) {
         return CourseResponse.builder()
-                .id(c.getId())
                 .title(c.getTitle())
                 .slug(c.getSlug())
-                .status(c.getStatus())
-                .publishedAt(c.getPublishedAt())
+
+                .shortDescription(c.getShortDescription())
+                .description(c.getDescription())
+                .whatYouWillLearn(c.getWhatYouWillLearn())
+                .prerequisites(c.getPrerequisites())
+                .targetAudience(c.getTargetAudience())
+
+                .thumbnailUrl(c.getThumbnailUrl())
+                .previewVideoUrl(c.getPreviewVideoUrl())
+
+                .categoryId(c.getCategory().getId())
+                .categoryName(c.getCategory().getName())
+
+                .difficultyLevel(c.getDifficultyLevel())
+                .language(c.getLanguage())
+                .tags(c.getTags())
+
+                .instructorId(c.getInstructor().getId())
+                .instructorName(c.getInstructor().getFullName())
+
+                .isFree(c.getIsFree())
+                .price(c.getPrice())
+
+                .hasCertificate(c.getHasCertificate())
+                .certificateThreshold(c.getCertificateThreshold())
+
+                .status(CourseStatus.DRAFT)
                 .build();
     }
 
