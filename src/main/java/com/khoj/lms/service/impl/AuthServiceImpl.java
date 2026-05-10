@@ -8,6 +8,7 @@ import com.khoj.lms.exception.*;
 import com.khoj.lms.repository.*;
 import com.khoj.lms.security.JwtUtil;
 import com.khoj.lms.service.AuthService;
+import com.khoj.lms.service.EmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +44,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil                  jwtUtil;
     private final PasswordEncoder          passwordEncoder;
     private final AuthenticationManager    authenticationManager;
+    private final EmailService             emailService;
 
     private static final int    OTP_LENGTH          = 6;
     private static final int    OTP_EXPIRY_MINUTES  = 15;
@@ -106,7 +108,8 @@ public class AuthServiceImpl implements AuthService {
         log.info("New user registered: {} ({})", user.getFullName(), user.getEmail());
 
         // TODO Phase 2: emailService.sendOtp(user.getEmail(), otp);
-        // For development: log OTP (remove in production)
+        emailService.sendOtpEmail(user.getEmail(), user.getFullName(), otp);
+
         log.debug("DEV OTP for {}: {}", user.getEmail(), otp);
 
         return MessageResponse.builder()
@@ -278,6 +281,7 @@ public class AuthServiceImpl implements AuthService {
         user.setOtpAttempts(0);
         userRepository.save(user);
 
+        emailService.sendWelcomeEmail(user.getEmail(), user.getFullName());
         log.info("Email verified for user: {}", user.getEmail());
 
         return MessageResponse.builder()
@@ -306,7 +310,7 @@ public class AuthServiceImpl implements AuthService {
         user.setOtpAttempts(0);
         userRepository.save(user);
 
-        // TODO Phase 2: emailService.sendOtp(user.getEmail(), otp);
+        emailService.sendOtpEmail(user.getEmail(), user.getFullName(), otp);
         log.debug("DEV Resent OTP for {}: {}", user.getEmail(), otp);
 
         return MessageResponse.builder()
@@ -328,7 +332,7 @@ public class AuthServiceImpl implements AuthService {
                     user.setResetToken(resetToken);
                     user.setResetTokenExpiresAt(LocalDateTime.now().plusMinutes(30));
                     userRepository.save(user);
-                    // TODO Phase 2: emailService.sendPasswordReset(user.getEmail(), resetToken);
+                    emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), resetToken);
                     log.debug("DEV Reset token for {}: {}", user.getEmail(), resetToken);
                 });
 

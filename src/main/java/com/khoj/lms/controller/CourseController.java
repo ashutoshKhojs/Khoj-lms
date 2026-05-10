@@ -19,7 +19,6 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping(ApiRoutes.Course.BASE)
 @Tag(name = "Courses", description = "Course management — public browsing, instructor authoring, admin approval")
 public class CourseController {
 
@@ -29,7 +28,7 @@ public class CourseController {
     // PUBLIC
     // ─────────────────────────────────────────
 
-    @GetMapping(ApiRoutes.Course.LIST)
+    @GetMapping(ApiRoutes.Course.BASE + ApiRoutes.Course.LIST)
     public ResponseEntity<ApiResponse<Page<CourseSummary>>> getCourses(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) UUID categoryId,
@@ -65,7 +64,7 @@ public class CourseController {
         );
     }
 
-    @GetMapping(ApiRoutes.Course.GET_BY_SLUG)
+    @GetMapping(ApiRoutes.Course.BASE + ApiRoutes.Course.GET_BY_SLUG)
     public ResponseEntity<ApiResponse<CourseResponse>> getCourse(@PathVariable String slug) {
         return ResponseEntity.ok(
                 ApiResponse.success(
@@ -79,7 +78,7 @@ public class CourseController {
     // INSTRUCTOR
     // ─────────────────────────────────────────
 
-    @GetMapping(ApiRoutes.Course.INSTRUCTOR_BASE)
+    @GetMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.INSTRUCTOR_LIST)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<InstructorCourseView>>> getMyCoursesAsInstructor(
             @CurrentUser UserDetails user,
@@ -157,7 +156,7 @@ public class CourseController {
     // ADMIN
     // ─────────────────────────────────────────
 
-    @GetMapping(ApiRoutes.Course.ADMIN_BASE)
+    @GetMapping(ApiRoutes.Course.ADMIN_BASE + ApiRoutes.Course.ADMIN_LIST)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<CourseSummary>>> getAllCoursesAdmin(
             @RequestParam(required = false) CourseStatus status,

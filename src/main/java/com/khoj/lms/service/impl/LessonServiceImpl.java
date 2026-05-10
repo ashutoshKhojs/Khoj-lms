@@ -7,6 +7,7 @@ import com.khoj.lms.exception.*;
 import com.khoj.lms.repository.*;
 import com.khoj.lms.service.LessonService;
 import com.khoj.lms.service.ModuleService;
+import com.khoj.lms.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -22,10 +23,10 @@ import java.util.stream.Collectors;
 @Slf4j
 public class LessonServiceImpl implements LessonService {
 
-    private final LessonRepository lessonRepository;
-    private final ModuleRepository moduleRepository;
-    private final ModuleService moduleService;
-
+    private final LessonRepository      lessonRepository;
+    private final ModuleRepository      moduleRepository;
+    private final ModuleService         moduleService;
+    private final S3Service             s3Service;
     // ================= READ =================
 
     @Override
@@ -168,6 +169,7 @@ public class LessonServiceImpl implements LessonService {
                 .orElseThrow(() -> new ResourceNotFoundException("Lesson", "id", id));
     }
 
+
     private void assertOwns(Course course, String email) {
         if (!course.getInstructor().getEmail().equalsIgnoreCase(email)) {
             throw new AccessDeniedException("You do not own this course.");
@@ -178,10 +180,17 @@ public class LessonServiceImpl implements LessonService {
 
     private LessonResponse toFullResponse(Lesson l) {
 
-        String videoUrl = l.getVideoS3Key() != null ? "/media/" + l.getVideoS3Key() : null;
-        String notesUrl = l.getNotesS3Key() != null ? "/media/" + l.getNotesS3Key() : null;
-        String thumbUrl = l.getVideoThumbnailS3Key() != null ? "/media/" + l.getVideoThumbnailS3Key() : null;
+        String videoUrl = l.getVideoS3Key() != null
+                ? s3Service.generateStreamUrl(l.getVideoS3Key(), true).getStreamUrl()
+                : null;
 
+        String notesUrl = l.getNotesS3Key() != null
+                ? s3Service.generateStreamUrl(l.getNotesS3Key(), false).getStreamUrl()
+                : null;
+
+        String thumbUrl = l.getVideoThumbnailS3Key() != null
+                ? s3Service.generateStreamUrl(l.getVideoThumbnailS3Key(), false).getStreamUrl()
+                : null;
         UUID prevId = lessonRepository
                 .findPreviousLesson(l.getModule().getId(), l.getDisplayOrder())
                 .map(Lesson::getId).orElse(null);

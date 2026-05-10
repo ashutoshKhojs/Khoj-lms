@@ -18,14 +18,13 @@ import java.util.*;
 
 
 @RestController
-@RequestMapping(ApiRoutes.Lesson.BASE)
 @RequiredArgsConstructor
 @Tag(name = "Lessons", description = "Lesson management")
 public class LessonController {
 
     private final LessonService lessonService;
 
-    @GetMapping(ApiRoutes.Lesson.GET_BY_MODULE)
+    @GetMapping(ApiRoutes.Lesson.BASE + ApiRoutes.Lesson.GET_BY_MODULE)
     public ResponseEntity<ApiResponse<List<LessonSummary>>> getLessons(
             @PathVariable UUID moduleId) {
 
@@ -37,7 +36,7 @@ public class LessonController {
         );
     }
 
-    @GetMapping(ApiRoutes.Lesson.GET_BY_ID)
+    @GetMapping(ApiRoutes.Lesson.BASE + ApiRoutes.Lesson.GET_BY_ID)
     public ResponseEntity<ApiResponse<LessonResponse>> getLesson(
             @PathVariable UUID id) {
 
@@ -49,7 +48,7 @@ public class LessonController {
         );
     }
 
-    @PostMapping(ApiRoutes.Lesson.CREATE)
+    @PostMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.CREATE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> createLesson(
             @PathVariable UUID moduleId,
@@ -64,7 +63,7 @@ public class LessonController {
         );
     }
 
-    @PutMapping(ApiRoutes.Lesson.UPDATE)
+    @PutMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.UPDATE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> updateLesson(
             @PathVariable UUID id,
@@ -79,7 +78,7 @@ public class LessonController {
         );
     }
 
-    @PatchMapping(ApiRoutes.Lesson.TOGGLE_PUBLISH)
+    @PatchMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.TOGGLE_PUBLISH)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> togglePublish(
             @PathVariable UUID id,
@@ -93,7 +92,7 @@ public class LessonController {
         );
     }
 
-    @DeleteMapping(ApiRoutes.Lesson.DELETE)
+    @DeleteMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.DELETE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteLesson(
             @PathVariable UUID id,
@@ -106,7 +105,7 @@ public class LessonController {
         );
     }
 
-    @PatchMapping(ApiRoutes.Lesson.REORDER)
+    @PatchMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.REORDER)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> reorderLessons(
             @Valid @RequestBody LessonReorderRequest request,

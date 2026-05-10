@@ -17,14 +17,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.*;
 
 @RestController
-@RequestMapping(ApiRoutes.Module.BASE)
 @RequiredArgsConstructor
 @Tag(name = "Modules", description = "Course module management")
 public class ModuleController {
 
     private final ModuleService moduleService;
 
-    @GetMapping(ApiRoutes.Module.GET_BY_COURSE)
+    @GetMapping(ApiRoutes.Module.BASE + ApiRoutes.Module.GET_BY_COURSE)
     public ResponseEntity<ApiResponse<List<ModuleResponse>>> getModules(
             @PathVariable UUID courseId) {
 
@@ -36,7 +35,7 @@ public class ModuleController {
         );
     }
 
-    @GetMapping(ApiRoutes.Module.GET_BY_ID)
+    @GetMapping(ApiRoutes.Module.BASE + ApiRoutes.Module.GET_BY_ID)
     public ResponseEntity<ApiResponse<ModuleResponse>> getModule(@PathVariable UUID id) {
 
         return ResponseEntity.ok(
@@ -47,7 +46,7 @@ public class ModuleController {
         );
     }
 
-    @PostMapping(ApiRoutes.Module.CREATE)
+    @PostMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.CREATE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> createModule(
             @PathVariable UUID courseId,
@@ -62,7 +61,7 @@ public class ModuleController {
         );
     }
 
-    @PutMapping(ApiRoutes.Module.UPDATE)
+    @PutMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.UPDATE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> updateModule(
             @PathVariable UUID id,
@@ -77,7 +76,7 @@ public class ModuleController {
         );
     }
 
-    @PatchMapping(ApiRoutes.Module.TOGGLE_PUBLISH)
+    @PatchMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.TOGGLE_PUBLISH)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> togglePublish(
             @PathVariable UUID id,
@@ -91,7 +90,7 @@ public class ModuleController {
         );
     }
 
-    @DeleteMapping(ApiRoutes.Module.DELETE)
+    @DeleteMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.DELETE)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteModule(
             @PathVariable UUID id,
@@ -104,7 +103,7 @@ public class ModuleController {
         );
     }
 
-    @PatchMapping(ApiRoutes.Module.REORDER)
+    @PatchMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.REORDER)
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> reorderModules(
             @Valid @RequestBody ModuleReorderRequest request,

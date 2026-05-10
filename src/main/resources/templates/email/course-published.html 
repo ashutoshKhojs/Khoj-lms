@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Your course is LIVE!</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:40px;text-align:center;">
+          <h1 style="color:#e94560;margin:0;font-size:28px;font-weight:800;letter-spacing:2px;">KHOJ</h1>
+          <p style="color:#fbd38d;margin:16px 0 0;font-size:28px;">🚀</p>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:40px;">
+          <h2 style="color:#1a1a2e;margin:0 0 16px;">Your course is LIVE!</h2>
+          <p style="color:#4a5568;font-size:15px;line-height:1.8;margin:0 0 20px;">
+            Hi <strong th:text="${name}">Instructor</strong>,<br/>
+            Great news! Your course
+            <strong style="color:#e94560;" th:text="${courseTitle}">Course Title</strong>
+            has been approved and is now live on Khoj for students to enroll.
+          </p>
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center" style="padding:16px 0;">
+              <a th:href="${baseUrl + '/instructor/courses'}"
+                 style="background:#e94560;color:#fff;padding:14px 40px;
+                        border-radius:8px;text-decoration:none;font-weight:700;
+                        font-size:15px;display:inline-block;">
+                View Your Course →
+              </a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:20px 40px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+          <p style="color:#a0aec0;font-size:12px;margin:0;">
+            © <span th:text="${year}">2026</span> Khoj. Free education for every Indian.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

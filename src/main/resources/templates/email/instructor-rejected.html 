@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"/><title>Application Update</title></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
+  <tr><td align="center">
+    <table width="600" cellpadding="0" cellspacing="0"
+           style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+
+      <tr>
+        <td style="background:linear-gradient(135deg,#1a1a2e,#0f3460);padding:40px;text-align:center;">
+          <h1 style="color:#e94560;margin:0;font-size:28px;font-weight:800;letter-spacing:2px;">KHOJ</h1>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:40px;">
+          <h2 style="color:#1a1a2e;margin:0 0 16px;">
+            Hi <span th:text="${name}">there</span>, an update on your application
+          </h2>
+          <p style="color:#4a5568;font-size:15px;line-height:1.8;margin:0 0 20px;">
+            Thank you for applying to become a Khoj instructor. After careful review,
+            we're unable to approve your application at this time.
+          </p>
+
+          <div style="background:#fff5f5;border:1px solid #feb2b2;border-radius:8px;padding:20px;margin:0 0 24px;">
+            <p style="margin:0 0 8px;color:#742a2a;font-size:13px;font-weight:700;
+                      text-transform:uppercase;letter-spacing:1px;">Reason</p>
+            <p style="margin:0;color:#4a5568;font-size:14px;line-height:1.7;"
+               th:text="${reason}">Reason here</p>
+          </div>
+
+          <p style="color:#4a5568;font-size:15px;line-height:1.8;margin:0 0 24px;">
+            Don't be discouraged — you can reapply after addressing the feedback above.
+            In the meantime, keep learning on Khoj!
+          </p>
+
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr><td align="center">
+              <a th:href="${baseUrl + '/instructor/apply'}"
+                 style="background:#0f3460;color:#fff;padding:14px 40px;
+                        border-radius:8px;text-decoration:none;font-weight:700;
+                        font-size:15px;display:inline-block;">
+                Reapply →
+              </a>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+
+      <tr>
+        <td style="padding:20px 40px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+          <p style="color:#a0aec0;font-size:12px;margin:0;">
+            © <span th:text="${year}">2026</span> Khoj. Free education for every Indian.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

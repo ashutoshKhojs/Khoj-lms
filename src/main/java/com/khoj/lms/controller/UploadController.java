@@ -1,4 +1,97 @@
 package com.khoj.lms.controller;
 
-public class f {
+import com.khoj.lms.dto.common.ApiResponse;
+import com.khoj.lms.dto.s3.S3Dtos.*;
+import com.khoj.lms.service.S3Service;
+import com.khoj.lms.util.ApiRoutes;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping(ApiRoutes.Upload.BASE)
+@RequiredArgsConstructor
+@Tag(name = "Upload", description = "Presigned URL generation for S3 direct upload")
+public class UploadController {
+
+    private final S3Service s3Service;
+
+    // ─────────────────────────────────────────
+    // Video — get presigned upload URL
+    // ─────────────────────────────────────────
+
+    @PostMapping(ApiRoutes.Upload.VIDEO_PRESIGN)
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Get presigned URL to upload lesson video directly to S3")
+    public ResponseEntity<ApiResponse<PresignResponse>> presignVideoUpload(
+            @Valid @RequestBody VideoPresignRequest request) {
+
+        PresignResponse response = s3Service.presignVideoUpload(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Presigned URL generated. Upload video directly to uploadUrl.", response));
+    }
+
+    // ─────────────────────────────────────────
+    // Video — complete multipart upload
+    // ─────────────────────────────────────────
+
+    @PostMapping(ApiRoutes.Upload.COMPLETE_MULTIPART)
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Complete multipart upload after all parts uploaded")
+    public ResponseEntity<ApiResponse<Void>> completeMultipart(
+            @Valid @RequestBody CompleteMultipartRequest request) {
+
+        s3Service.completeMultipartUpload(request);
+        return ResponseEntity.ok(ApiResponse.success("Video upload completed successfully."));
+    }
+
+    // ─────────────────────────────────────────
+    // Video — abort multipart (on frontend failure)
+    // ─────────────────────────────────────────
+
+    @PostMapping(ApiRoutes.Upload.ABORT_MULTIPART)
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Abort multipart upload and clean up S3")
+    public ResponseEntity<ApiResponse<Void>> abortMultipart(
+            @RequestParam String s3Key,
+            @RequestParam String uploadId) {
+
+        s3Service.abortMultipartUpload(s3Key, uploadId);
+        return ResponseEntity.ok(ApiResponse.success("Upload aborted and cleaned up."));
+    }
+
+    // ─────────────────────────────────────────
+    // Image — thumbnail / avatar
+    // ─────────────────────────────────────────
+
+    @PostMapping(ApiRoutes.Upload.IMAGE_PRESIGN)
+    @Operation(summary = "Get presigned URL to upload image (thumbnail or avatar)")
+    public ResponseEntity<ApiResponse<PresignResponse>> presignImageUpload(
+            @Valid @RequestBody ImagePresignRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        PresignResponse response = s3Service.presignImageUpload(request);
+        return ResponseEntity.ok(ApiResponse.success(
+                "Presigned URL generated. Upload image directly to uploadUrl.", response));
+    }
+
+    // ─────────────────────────────────────────
+    // Get stream URL (student watching video)
+    // ─────────────────────────────────────────
+
+    @GetMapping(ApiRoutes.Upload.STREAM_URL)
+    @Operation(summary = "Get temporary streaming URL for a video or image")
+    public ResponseEntity<ApiResponse<StreamUrlResponse>> getStreamUrl(
+            @RequestParam String s3Key,
+            @RequestParam(defaultValue = "true") boolean isVideo) {
+
+        StreamUrlResponse response = s3Service.generateStreamUrl(s3Key, isVideo);
+        return ResponseEntity.ok(ApiResponse.success("Stream URL generated.", response));
+    }
 }

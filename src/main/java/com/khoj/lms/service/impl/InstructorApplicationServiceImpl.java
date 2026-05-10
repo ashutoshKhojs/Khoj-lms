@@ -6,6 +6,7 @@ import com.khoj.lms.enums.ApplicationStatus;
 import com.khoj.lms.enums.RoleName;
 import com.khoj.lms.exception.*;
 import com.khoj.lms.repository.*;
+import com.khoj.lms.service.EmailService;
 import com.khoj.lms.service.InstructorApplicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,9 +22,10 @@ import java.util.UUID;
 @Slf4j
 public class InstructorApplicationServiceImpl implements InstructorApplicationService {
 
-    private final InstructorApplicationRepository applicationRepository;
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final InstructorApplicationRepository       applicationRepository;
+    private final UserRepository                        userRepository;
+    private final RoleRepository                        roleRepository;
+    private final EmailService                          emailService;
 
     // ── Apply ─────────────────────────────────
 
@@ -107,7 +109,7 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
         application.setReviewedAt(LocalDateTime.now());
         application.setRejectionReason(null);
         applicationRepository.save(application);
-
+        emailService.sendInstructorApprovedEmail(applicant.getEmail(), applicant.getFullName());
         log.info("Instructor APPROVED: {} by {}", applicant.getEmail(), adminEmail);
 
         return mapToResponse(application);
@@ -135,6 +137,11 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
         application.setRejectionReason(request.getReason());
         applicationRepository.save(application);
 
+        emailService.sendInstructorRejectedEmail(
+                application.getUser().getEmail(),
+                application.getUser().getFullName(),
+                request.getReason()
+        );
         log.info("Instructor REJECTED: {} by {}", application.getUser().getEmail(), adminEmail);
 
         return mapToResponse(application);
