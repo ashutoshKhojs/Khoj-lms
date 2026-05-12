@@ -1,6 +1,8 @@
 package com.khoj.lms.exception;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.common.ApiResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,18 +11,24 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
 
+    private final AuditLogger auditLogger;
+
     // ─────────────────────────────────────────
-    // Validation Errors
+    // Validation Errors — @Valid failures
+    // LOGS TO: main log only (client mistake)
     // ─────────────────────────────────────────
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -28,81 +36,286 @@ public class GlobalExceptionHandler {
             MethodArgumentNotValidException ex) {
 
         Map<String, String> errors = new HashMap<>();
-
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
 
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error("Validation failed"));
+        log.warn("Validation failed — fields={} errors={}",
+                errors.keySet(), errors.values());
+        // ✗ NOT audit — just a form validation error
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("Validation failed", errors));
     }
 
     // ─────────────────────────────────────────
-    // Custom Exceptions
+    // Missing Request Param
+    // LOGS TO: main log only
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParam(
+            MissingServletRequestParameterException ex) {
+
+        log.warn("Missing request parameter — param='{}' type='{}'",
+                ex.getParameterName(), ex.getParameterType());
+        // ✗ NOT audit — client forgot a param
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        "Missing required parameter: " + ex.getParameterName()));
+    }
+
+    // ─────────────────────────────────────────
+    // Wrong Type in Request Param / Path Var
+    // LOGS TO: main log only
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex) {
+
+        log.warn("Type mismatch — param='{}' value='{}' expectedType='{}'",
+                ex.getName(), ex.getValue(),
+                ex.getRequiredType() != null
+                        ? ex.getRequiredType().getSimpleName() : "unknown");
+        // ✗ NOT audit — wrong type in URL param
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(
+                        "Invalid value '" + ex.getValue() +
+                                "' for parameter '" + ex.getName() + "'"));
+    }
+
+    // ─────────────────────────────────────────
+    // Resource Not Found — 404
+    // LOGS TO: main log only
     // ─────────────────────────────────────────
 
     @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(
+            ResourceNotFoundException ex) {
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDuplicate(DuplicateResourceException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
+        log.warn("Resource not found — {}", ex.getMessage());
+        // ✗ NOT audit — routine not found
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException ex) {
-        return ResponseEntity.badRequest()
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAuth(AuthenticationException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccess(AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error(ex.getMessage()));
     }
 
     // ─────────────────────────────────────────
-    // Spring Security Exceptions
+    // Duplicate Resource — 409
+    // LOGS TO: main log only
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDuplicate(
+            DuplicateResourceException ex) {
+
+        log.warn("Duplicate resource — {}", ex.getMessage());
+        // ✗ NOT audit — e.g. email already exists
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Bad Request — 400
+    // LOGS TO: main log only
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadRequest(
+            BadRequestException ex) {
+
+        log.warn("Bad request — {}", ex.getMessage());
+        // ✗ NOT audit — general bad input
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Auth Failed — 401
+    // LOGS TO: main log + AUDIT LOG ✅
+    // Someone tried to access with bad/expired token
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuth(
+            AuthenticationException ex) {
+
+        log.warn("Authentication failed — {}", ex.getMessage());
+
+        // ✅ AUDIT — authentication failure is a security event
+        auditLogger.loginFailed(
+                "unknown",          // email not available at this point
+                "unknown",          // IP tracked by RequestLoggingFilter MDC
+                0
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Access Denied (custom) — 403
+    // LOGS TO: main log + AUDIT LOG ✅
+    // Someone tried to touch a resource they don't own
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(
+            AccessDeniedException ex) {
+
+        log.warn("Access denied — {}", ex.getMessage());
+
+        // ✅ AUDIT — ownership violation is a security event
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "ACCESS_DENIED: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Spring Security — Access Denied
+    // LOGS TO: main log + AUDIT LOG ✅
+    // @PreAuthorize failure — wrong role trying restricted endpoint
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSpringAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex) {
+
+        log.warn("Spring Security access denied — {}", ex.getMessage());
+
+        // ✅ AUDIT — role violation attempt is a security event
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "ROLE_VIOLATION: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                        "You don't have permission to perform this action."));
+    }
+
+    // ─────────────────────────────────────────
+    // Spring Security — Bad Credentials
+    // LOGS TO: main log + AUDIT LOG ✅
+    // Wrong password attempt
     // ─────────────────────────────────────────
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBadCredentials() {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(
+            BadCredentialsException ex) {
+
+        log.warn("Bad credentials attempt — {}", ex.getMessage());
+
+        // ✅ AUDIT — failed login attempt is a security event
+        auditLogger.loginFailed("unknown", "unknown", 0);
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error("Invalid email or password"));
     }
 
-    @ExceptionHandler(LockedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleLocked() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Account is locked"));
-    }
+    // ─────────────────────────────────────────
+    // Spring Security — Account Locked
+    // LOGS TO: main log + AUDIT LOG ✅
+    // Locked account being accessed
+    // ─────────────────────────────────────────
 
-    @ExceptionHandler(DisabledException.class)
-    public ResponseEntity<ApiResponse<Void>> handleDisabled() {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error("Account is disabled"));
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLocked(
+            LockedException ex) {
+
+        log.warn("Locked account access attempt — {}", ex.getMessage());
+
+        // ✅ AUDIT — accessing locked account is a security event
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "LOCKED_ACCOUNT_ACCESS: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                        "Your account has been locked. Please contact support."));
     }
 
     // ─────────────────────────────────────────
-    // Fallback
+    // Spring Security — Account Disabled
+    // LOGS TO: main log + AUDIT LOG ✅
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ApiResponse<Void>> handleDisabled(
+            DisabledException ex) {
+
+        log.warn("Disabled account access attempt — {}", ex.getMessage());
+
+        // ✅ AUDIT — accessing disabled account is a security event
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "DISABLED_ACCOUNT_ACCESS: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                        "Your account has been disabled. Please contact support."));
+    }
+
+    // ─────────────────────────────────────────
+    // Illegal State — internal config issues
+    // LOGS TO: main log + error log (ERROR level)
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalState(
+            IllegalStateException ex) {
+
+        log.error("Illegal state — {}", ex.getMessage(), ex);
+        // ✗ NOT audit — server config issue, not a user action
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(
+                        "Internal configuration error. Please contact support."));
+    }
+
+    // ─────────────────────────────────────────
+    // Fallback — catch everything else
+    // LOGS TO: main log + error log (ERROR level)
     // ─────────────────────────────────────────
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleAll(Exception ex) {
 
-        log.error("Unexpected error", ex);
+        log.error("Unexpected error — type={} message={}",
+                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+        // ✗ NOT audit — unexpected crash, not a user security action
 
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Something went wrong"));
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(
+                        "Something went wrong. Please try again later."));
     }
 }

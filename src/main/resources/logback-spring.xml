@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- ─────────────────────────────────────────────────
+         SPRING BOOT DEFAULTS (base config)
+         ───────────────────────────────────────────────── -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- ─────────────────────────────────────────────────
+         PROPERTIES
+         ───────────────────────────────────────────────── -->
+    <springProperty scope="context" name="APP_NAME"
+                    source="spring.application.name"
+                    defaultValue="khoj-lms"/>
+    <springProperty scope="context" name="ACTIVE_PROFILE"
+                    source="spring.profiles.active"
+                    defaultValue="default"/>
+
+    <property name="LOG_DIR"     value="logs"/>
+    <property name="CURRENT_DIR" value="${LOG_DIR}/current"/>
+    <property name="ARCHIVE_DIR" value="${LOG_DIR}/archived"/>
+
+    <!-- ALL 3 log types share same Month/Week archive structure -->
+    <property name="ARCHIVE_PATH"
+              value="${ARCHIVE_DIR}/%d{yyyy,aux}/%d{MMMM,aux}/Week-%d{W,aux}"/>
+
+    <!-- Console pattern (colored, human readable) -->
+    <property name="CONSOLE_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr([%thread]){magenta} %clr([%X{requestId:-NO_REQ}]){cyan} %clr([%X{userEmail:-anonymous}]){yellow} %clr(%-5level){highlight} %clr(%logger{40}){blue} - %msg%n"/>
+
+
+    <!-- ─────────────────────────────────────────────────
+         1. CONSOLE APPENDER
+            Human readable colored output for terminal
+         ───────────────────────────────────────────────── -->
+    <appender name="CONSOLE"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+
+    <!-- ─────────────────────────────────────────────────
+         2. MAIN LOG FILE — daily rotation
+            current/khoj-lms.log
+            Contains: DEBUG + INFO + WARN + ERROR
+            Archives: yyyy/MMMM/Week-W/khoj-lms-yyyy-MM-dd.log.gz
+            Kept: 365 days
+            Cap: 20GB
+         ───────────────────────────────────────────────── -->
+    <appender name="MAIN_FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <file>${CURRENT_DIR}/${APP_NAME}.log</file>
+        <append>true</append>
+
+        <!-- JSON format — Grafana/Loki ready when you plug it in -->
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeCallerData>false</includeCallerData>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <customFields>{"app":"${APP_NAME}","env":"${ACTIVE_PROFILE}"}</customFields>
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <message>message</message>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <level>level</level>
+            </fieldNames>
+            <throwableConverter
+                    class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerCause>20</maxDepthPerCause>
+                <maxLength>8192</maxLength>
+                <shortenedClassNameLength>40</shortenedClassNameLength>
+                <exclude>sun\.reflect\..*</exclude>
+                <exclude>java\.lang\.reflect\..*</exclude>
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+        </encoder>
+
+        <rollingPolicy
+                class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${ARCHIVE_PATH}/${APP_NAME}-%d{yyyy-MM-dd}.log.gz
+            </fileNamePattern>
+            <maxHistory>365</maxHistory>
+            <totalSizeCap>20GB</totalSizeCap>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+
+    <!-- ─────────────────────────────────────────────────
+         3. ERROR LOG FILE — daily rotation
+            current/khoj-lms-error.log
+            Contains: ERROR only
+            Same Month/Week archive structure
+            Kept: 180 days
+            Cap: 5GB
+         ───────────────────────────────────────────────── -->
+    <appender name="ERROR_FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <file>${CURRENT_DIR}/${APP_NAME}-error.log</file>
+        <append>true</append>
+
+        <!-- ERROR only filter -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeCallerData>true</includeCallerData>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <customFields>{"app":"${APP_NAME}","env":"${ACTIVE_PROFILE}","logType":"error"}</customFields>
+            <throwableConverter
+                    class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerCause>30</maxDepthPerCause>
+                <maxLength>16384</maxLength>
+                <shortenedClassNameLength>40</shortenedClassNameLength>
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+        </encoder>
+
+        <rollingPolicy
+                class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${ARCHIVE_PATH}/${APP_NAME}-error-%d{yyyy-MM-dd}.log.gz
+            </fileNamePattern>
+            <maxHistory>180</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+
+    <!-- ─────────────────────────────────────────────────
+         4. AUDIT LOG FILE — daily rotation
+            current/khoj-lms-audit.log
+            Contains: Security & compliance events only
+            Same Month/Week archive structure
+            Kept: 365 days (compliance)
+            Cap: 5GB
+         ───────────────────────────────────────────────── -->
+    <appender name="AUDIT_FILE"
+              class="ch.qos.logback.core.rolling.RollingFileAppender">
+
+        <file>${CURRENT_DIR}/${APP_NAME}-audit.log</file>
+        <append>true</append>
+
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <includeCallerData>false</includeCallerData>
+            <includeMdcKeyName>requestId</includeMdcKeyName>
+            <includeMdcKeyName>userEmail</includeMdcKeyName>
+            <includeMdcKeyName>clientIp</includeMdcKeyName>
+            <customFields>{"app":"${APP_NAME}","env":"${ACTIVE_PROFILE}","logType":"audit"}</customFields>
+        </encoder>
+
+        <rollingPolicy
+                class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>
+                ${ARCHIVE_PATH}/${APP_NAME}-audit-%d{yyyy-MM-dd}.log.gz
+            </fileNamePattern>
+            <maxHistory>365</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+            <cleanHistoryOnStart>false</cleanHistoryOnStart>
+        </rollingPolicy>
+    </appender>
+
+
+    <!-- ─────────────────────────────────────────────────
+         5. ASYNC WRAPPERS
+            Wraps every file appender so logging
+            NEVER blocks your API request threads
+         ───────────────────────────────────────────────── -->
+    <appender name="ASYNC_MAIN"
+              class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="MAIN_FILE"/>
+        <queueSize>1024</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+        <neverBlock>false</neverBlock>
+    </appender>
+
+    <appender name="ASYNC_ERROR"
+              class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="ERROR_FILE"/>
+        <queueSize>256</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+    </appender>
+
+    <appender name="ASYNC_AUDIT"
+              class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="AUDIT_FILE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <neverBlock>false</neverBlock>
+    </appender>
+
+
+    <!-- ─────────────────────────────────────────────────
+         PACKAGE LEVEL LOGGERS
+         ───────────────────────────────────────────────── -->
+
+    <!-- Your app — all levels, main + error files -->
+    <logger name="com.khoj.lms"
+            level="DEBUG"
+            additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_MAIN"/>
+        <appender-ref ref="ASYNC_ERROR"/>
+    </logger>
+
+    <!-- Audit logger — dedicated file only -->
+    <logger name="com.khoj.lms.audit"
+            level="INFO"
+            additivity="false">
+        <appender-ref ref="ASYNC_AUDIT"/>
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
+    <!-- Third party noise — keep quiet -->
+    <logger name="org.springframework.security"
+            level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="ASYNC_MAIN"/>
+    </logger>
+    <logger name="org.springframework.web"                level="WARN"/>
+    <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
+    <logger name="org.hibernate.SQL"                      level="OFF"/>
+    <logger name="org.hibernate.type.descriptor.sql"      level="OFF"/>
+    <logger name="com.zaxxer.hikari"                      level="WARN"/>
+    <logger name="org.flywaydb"                           level="INFO"/>
+    <logger name="software.amazon.awssdk"                 level="WARN"/>
+    <logger name="org.apache.tomcat"                      level="WARN"/>
+    <logger name="org.apache.catalina"                    level="WARN"/>
+
+
+    <!-- ─────────────────────────────────────────────────
+         PROFILE BASED ROOT LOGGERS
+         ───────────────────────────────────────────────── -->
+
+    <!-- DEV — show SQL, full debug -->
+    <springProfile name="dev">
+        <logger name="org.hibernate.SQL"
+                level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        <logger name="org.hibernate.type.descriptor.sql"
+                level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_MAIN"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <!-- PROD — minimal console, everything to files -->
+    <springProfile name="prod">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_MAIN"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+    <!-- Default / no profile -->
+    <springProfile name="!dev &amp; !prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_MAIN"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+    </springProfile>
+
+</configuration>

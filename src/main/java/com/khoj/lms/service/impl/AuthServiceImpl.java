@@ -1,5 +1,6 @@
 package com.khoj.lms.service.impl;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.auth.*;
 import com.khoj.lms.entity.*;
 import com.khoj.lms.enums.AuthProvider;
@@ -45,6 +46,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder          passwordEncoder;
     private final AuthenticationManager    authenticationManager;
     private final EmailService             emailService;
+    private final AuditLogger              auditLogger;
+
 
     private static final int    OTP_LENGTH          = 6;
     private static final int    OTP_EXPIRY_MINUTES  = 15;
@@ -112,6 +115,9 @@ public class AuthServiceImpl implements AuthService {
 
         log.debug("DEV OTP for {}: {}", user.getEmail(), otp);
 
+        auditLogger.userRegistered(user.getEmail());
+
+
         return MessageResponse.builder()
                 .success(true)
                 .message("Registration successful. Please check your email for the OTP to verify your account.")
@@ -154,10 +160,13 @@ public class AuthServiceImpl implements AuthService {
             if (user.getFailedLoginAttempts() >= MAX_LOGIN_ATTEMPTS) {
                 user.lockAccount("Too many failed login attempts");
                 userRepository.save(user);
+                auditLogger.accountLocked(email, "Too many failed login attempts");
                 throw new AuthenticationException(
                         "Account locked due to too many failed attempts. Please contact support.");
             }
             userRepository.save(user);
+            auditLogger.loginFailed(email, getClientIp(httpRequest),
+                    user.getFailedLoginAttempts());
             throw new AuthenticationException("Invalid email or password");
         }
 
@@ -171,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         String accessToken = jwtUtil.generateAccessToken(userDetails, user.getId());
         String refreshTokenValue = generateAndSaveRefreshToken(user, httpRequest);
-
+        auditLogger.userLoggedIn(email, getClientIp(httpRequest));
         return buildAuthResponse(user, accessToken, refreshTokenValue);
     }
 
@@ -214,6 +223,7 @@ public class AuthServiceImpl implements AuthService {
         String newRefreshToken = generateAndSaveRefreshToken(user, httpRequest);
 
         log.debug("Token refreshed for user: {}", user.getEmail());
+        auditLogger.tokenRefreshed(user.getEmail());
 
         return buildAuthResponse(user, newAccessToken, newRefreshToken);
     }
@@ -234,6 +244,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.revokeAllByUserId(user.getId());
 
         log.info("User logged out: {}", email);
+        auditLogger.userLoggedOut(email);
 
         return MessageResponse.builder()
                 .success(true)
@@ -282,6 +293,7 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         emailService.sendWelcomeEmail(user.getEmail(), user.getFullName());
+        auditLogger.emailVerified(user.getEmail());
         log.info("Email verified for user: {}", user.getEmail());
 
         return MessageResponse.builder()
@@ -311,6 +323,7 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         emailService.sendOtpEmail(user.getEmail(), user.getFullName(), otp);
+        auditLogger.otpResent(user.getEmail());
         log.debug("DEV Resent OTP for {}: {}", user.getEmail(), otp);
 
         return MessageResponse.builder()
@@ -335,6 +348,9 @@ public class AuthServiceImpl implements AuthService {
                     emailService.sendPasswordResetEmail(user.getEmail(), user.getFullName(), resetToken);
                     log.debug("DEV Reset token for {}: {}", user.getEmail(), resetToken);
                 });
+
+        auditLogger.passwordResetRequested(request.getEmail());
+
 
         return MessageResponse.builder()
                 .success(true)
@@ -367,7 +383,7 @@ public class AuthServiceImpl implements AuthService {
         refreshTokenRepository.revokeAllByUserId(user.getId());
 
         log.info("Password reset for user: {}", user.getEmail());
-
+        auditLogger.passwordResetCompleted(user.getEmail());
         return MessageResponse.builder()
                 .success(true)
                 .message("Password reset successfully. Please log in with your new password.")

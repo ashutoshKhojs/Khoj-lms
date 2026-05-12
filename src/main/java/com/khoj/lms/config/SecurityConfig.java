@@ -1,11 +1,16 @@
 package com.khoj.lms.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.security.JwtAuthFilter;
 import com.khoj.lms.security.UserDetailsServiceImpl;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -24,111 +29,145 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Map;
 
-/**
- * Spring Security configuration for Khoj LMS.
- *
- * Strategy:
- *  - STATELESS sessions (JWT — no server-side sessions)
- *  - CSRF disabled (SPA with JWT doesn't need it)
- *  - Public routes: /auth/**, course listings, certificate verify
- *  - Role-based access via @PreAuthorize on service/controller methods
- */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true)   // Enables @PreAuthorize / @PostAuthorize
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
-    private final JwtAuthFilter jwtAuthFilter;
+    private final JwtAuthFilter          jwtAuthFilter;
     private final UserDetailsServiceImpl userDetailsService;
+    private final AuditLogger            auditLogger;
 
-    // ─────────────────────────────────────────
-    // Public routes — no token needed
-    // ─────────────────────────────────────────
     private static final String[] PUBLIC_ROUTES = {
             "/auth/**",
-            "/courses",                         // course listing
-            "/courses/{slug}",                  // course detail page
-            "/categories/**",                   // category listing
-            "/certificates/verify/**",          // public cert verification
+            "/courses",
+            "/courses/{slug}",
+            "/categories/**",
+            "/certificates/verify/**",
             "/actuator/health",
-            "/v3/api-docs/**",                  // Swagger
+            "/v3/api-docs/**",
             "/swagger-ui/**",
             "/swagger-ui.html"
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http)
+            throws Exception {
+
         http
-                // Disable CSRF — stateless JWT API doesn't need it
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // CORS — allow frontend origin
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
-                // Session — completely stateless
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Public GET routes
-                        .requestMatchers(HttpMethod.GET, PUBLIC_ROUTES).permitAll()
-                        // Auth endpoints (POST)
+                        .requestMatchers(HttpMethod.GET,  PUBLIC_ROUTES).permitAll()
                         .requestMatchers(HttpMethod.POST, "/auth/**").permitAll()
-                        // Lesson preview (free preview videos don't need auth)
-                        .requestMatchers(HttpMethod.GET, "/lessons/*/preview").permitAll()
-                        // Everything else requires authentication
+                        .requestMatchers(HttpMethod.GET,  "/lessons/*/preview").permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // Plug in our JWT filter before the default username/password filter
+                .exceptionHandling(ex -> ex
+
+                        // ── 401 — No token / invalid token ──────────
+                        .authenticationEntryPoint((request, response, authException) -> {
+
+                            log.warn("Unauthorized — uri={} ip={} reason={}",
+                                    request.getRequestURI(),
+                                    request.getRemoteAddr(),
+                                    authException.getMessage());
+
+                            auditLogger.suspiciousActivity(
+                                    "unknown",
+                                    request.getRemoteAddr(),
+                                    "UNAUTHORIZED_ACCESS: " + request.getRequestURI()
+                            );
+
+                            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+
+                            Map<String, Object> body = Map.of(
+                                    "success", false,
+                                    "message", "Authentication required. Please login.",
+                                    "timestamp", java.time.LocalDateTime.now().toString()
+                            );
+
+                            new ObjectMapper()
+                                    .writeValue(response.getWriter(), body);
+                        })
+
+                        // ── 403 — Wrong role / insufficient permissions ──
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+
+                            log.warn("Forbidden — uri={} ip={} reason={}",
+                                    request.getRequestURI(),
+                                    request.getRemoteAddr(),
+                                    accessDeniedException.getMessage());
+
+                            auditLogger.suspiciousActivity(
+                                    "unknown",
+                                    request.getRemoteAddr(),
+                                    "FORBIDDEN_ACCESS: " + request.getRequestURI()
+                            );
+
+                            response.setStatus(HttpStatus.FORBIDDEN.value());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.setCharacterEncoding("UTF-8");
+
+                            Map<String, Object> body = Map.of(
+                                    "success", false,
+                                    "message", "You don't have permission to perform this action.",
+                                    "timestamp", java.time.LocalDateTime.now().toString()
+                            );
+
+                            new ObjectMapper()
+                                    .writeValue(response.getWriter(), body);
+                        })
+                )
+
                 .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthFilter,
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
-    // ─────────────────────────────────────────
-    // CORS — allow React frontend (adjust origin for production)
-    // ─────────────────────────────────────────
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",        // Next.js dev
-                "http://localhost:5173",        // Vite dev
-                "https://*.khoj.com"            // Production domains
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://*.khoj.com"
         ));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        config.setExposedHeaders(List.of("Authorization"));
+        config.setExposedHeaders(List.of("Authorization", "X-Request-ID"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
-    // ─────────────────────────────────────────
-    // Beans
-    // ─────────────────────────────────────────
-
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);    // Cost factor 12 — good balance for 2024
+        return new BCryptPasswordEncoder(12);
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-
         DaoAuthenticationProvider provider =
-                new DaoAuthenticationProvider(userDetailsService); // ✅ FIX
-
+                new DaoAuthenticationProvider(userDetailsService);
         provider.setPasswordEncoder(passwordEncoder());
-
         return provider;
     }
 

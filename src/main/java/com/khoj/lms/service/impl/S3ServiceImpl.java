@@ -1,5 +1,6 @@
 package com.khoj.lms.service.impl;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.config.properties.AwsProperties;
 import com.khoj.lms.dto.s3.S3Dtos.*;
 import com.khoj.lms.exception.BadRequestException;
@@ -22,9 +23,11 @@ import java.util.stream.Collectors;
 @Slf4j
 public class S3ServiceImpl implements S3Service {
 
-    private final S3Client        s3Client;
-    private final S3Presigner     s3Presigner;
-    private final AwsProperties   awsProperties;
+    private final S3Client              s3Client;
+    private final S3Presigner           s3Presigner;
+    private final AwsProperties         awsProperties;
+    private final AuditLogger           auditLogger;
+
 
     private static final long MB = 1024L * 1024L;
 

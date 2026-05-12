@@ -1,5 +1,6 @@
 package com.khoj.lms.service.impl;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.instructor.InstructorApplicationDtos.*;
 import com.khoj.lms.entity.*;
 import com.khoj.lms.enums.ApplicationStatus;
@@ -26,6 +27,8 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
     private final UserRepository                        userRepository;
     private final RoleRepository                        roleRepository;
     private final EmailService                          emailService;
+    private final AuditLogger                           auditLogger;
+
 
     // ── Apply ─────────────────────────────────
 
@@ -64,6 +67,7 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
         applicationRepository.save(application);
 
         log.info("Instructor application submitted by: {}", applicantEmail);
+        auditLogger.instructorApplied(applicantEmail);
 
         return mapToResponse(application);
     }
@@ -112,6 +116,9 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
         emailService.sendInstructorApprovedEmail(applicant.getEmail(), applicant.getFullName());
         log.info("Instructor APPROVED: {} by {}", applicant.getEmail(), adminEmail);
 
+        auditLogger.instructorApproved(applicant.getEmail(), adminEmail);
+        auditLogger.roleGranted(applicant.getEmail(), "INSTRUCTOR", adminEmail);
+
         return mapToResponse(application);
     }
 
@@ -143,7 +150,11 @@ public class InstructorApplicationServiceImpl implements InstructorApplicationSe
                 request.getReason()
         );
         log.info("Instructor REJECTED: {} by {}", application.getUser().getEmail(), adminEmail);
-
+        auditLogger.instructorRejected(
+                application.getUser().getEmail(),
+                adminEmail,
+                request.getReason()
+        );
         return mapToResponse(application);
     }
 

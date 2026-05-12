@@ -11,6 +11,10 @@ import java.util.concurrent.Executor;
 @EnableAsync
 public class AsyncConfig {
 
+    /**
+     * Thread pool for email sending.
+     * Emails are @Async — never block API response.
+     */
     @Bean(name = "emailTaskExecutor")
     public Executor emailTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
@@ -18,6 +22,8 @@ public class AsyncConfig {
         executor.setMaxPoolSize(5);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("email-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

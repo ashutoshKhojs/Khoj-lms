@@ -1,5 +1,6 @@
 package com.khoj.lms.service.impl;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.course.*;
 import com.khoj.lms.entity.*;
 import com.khoj.lms.enums.CourseStatus;
@@ -24,10 +25,12 @@ import java.util.UUID;
 @Slf4j
 public class CourseServiceImpl implements CourseService {
 
-    private final CourseRepository courseRepository;
-    private final CategoryRepository categoryRepository;
-    private final UserRepository userRepository;
-    private final ModuleRepository moduleRepository;
+    private final CourseRepository              courseRepository;
+    private final CategoryRepository            categoryRepository;
+    private final UserRepository                userRepository;
+    private final ModuleRepository              moduleRepository;
+    private final AuditLogger                   auditLogger;
+
 
     // ================= PUBLIC =================
 
@@ -124,6 +127,8 @@ public class CourseServiceImpl implements CourseService {
 
         log.info("Course created: {}", course.getTitle());
 
+        auditLogger.courseCreated(course.getTitle(), instructorEmail);
+
         return toFullResponse(course);
     }
 
@@ -153,6 +158,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         course.setStatus(CourseStatus.PENDING);
+        auditLogger.courseSubmitted(course.getTitle(), instructorEmail);
 
         return toFullResponse(courseRepository.save(course));
     }
@@ -194,6 +200,7 @@ public class CourseServiceImpl implements CourseService {
 
         course.setStatus(CourseStatus.PUBLISHED);
         course.setPublishedAt(LocalDateTime.from(Instant.now()));
+        auditLogger.courseApproved(course.getTitle(), adminEmail);
 
         return toFullResponse(courseRepository.save(course));
     }
@@ -211,6 +218,8 @@ public class CourseServiceImpl implements CourseService {
 
         course.setStatus(CourseStatus.REJECTED);
         course.setRejectionReason(request.getReason());
+
+        auditLogger.courseRejected(course.getTitle(), adminEmail, request.getReason());
 
         return toFullResponse(courseRepository.save(course));
     }

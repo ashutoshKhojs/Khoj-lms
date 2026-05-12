@@ -1,5 +1,6 @@
 package com.khoj.lms.controller;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.common.ApiResponse;
 import com.khoj.lms.dto.s3.S3Dtos.*;
 import com.khoj.lms.service.S3Service;
@@ -20,7 +21,8 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Upload", description = "Presigned URL generation for S3 direct upload")
 public class UploadController {
 
-    private final S3Service s3Service;
+    private final S3Service   s3Service;
+    private final AuditLogger auditLogger;
 
     // ─────────────────────────────────────────
     // Video — get presigned upload URL
@@ -30,11 +32,19 @@ public class UploadController {
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Get presigned URL to upload lesson video directly to S3")
     public ResponseEntity<ApiResponse<PresignResponse>> presignVideoUpload(
-            @Valid @RequestBody VideoPresignRequest request) {
+            @Valid @RequestBody VideoPresignRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {  // ← added
 
         PresignResponse response = s3Service.presignVideoUpload(request);
+
+        auditLogger.videoUploadInitiated(
+                userDetails.getUsername(),
+                response.getS3Key()
+        );
+
         return ResponseEntity.ok(ApiResponse.success(
-                "Presigned URL generated. Upload video directly to uploadUrl.", response));
+                "Presigned URL generated. Upload video directly to uploadUrl.",
+                response));
     }
 
     // ─────────────────────────────────────────
@@ -45,10 +55,18 @@ public class UploadController {
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Complete multipart upload after all parts uploaded")
     public ResponseEntity<ApiResponse<Void>> completeMultipart(
-            @Valid @RequestBody CompleteMultipartRequest request) {
+            @Valid @RequestBody CompleteMultipartRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {  // ← added
 
         s3Service.completeMultipartUpload(request);
-        return ResponseEntity.ok(ApiResponse.success("Video upload completed successfully."));
+
+        auditLogger.videoUploadCompleted(
+                userDetails.getUsername(),
+                request.getS3Key()
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Video upload completed successfully."));
     }
 
     // ─────────────────────────────────────────
@@ -60,10 +78,18 @@ public class UploadController {
     @Operation(summary = "Abort multipart upload and clean up S3")
     public ResponseEntity<ApiResponse<Void>> abortMultipart(
             @RequestParam String s3Key,
-            @RequestParam String uploadId) {
+            @RequestParam String uploadId,
+            @AuthenticationPrincipal UserDetails userDetails) {  // ← added
 
         s3Service.abortMultipartUpload(s3Key, uploadId);
-        return ResponseEntity.ok(ApiResponse.success("Upload aborted and cleaned up."));
+
+        auditLogger.videoUploadAborted(
+                userDetails.getUsername(),
+                s3Key
+        );
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Upload aborted and cleaned up."));
     }
 
     // ─────────────────────────────────────────
@@ -74,11 +100,18 @@ public class UploadController {
     @Operation(summary = "Get presigned URL to upload image (thumbnail or avatar)")
     public ResponseEntity<ApiResponse<PresignResponse>> presignImageUpload(
             @Valid @RequestBody ImagePresignRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            @AuthenticationPrincipal UserDetails userDetails) {  // ← already correct
 
         PresignResponse response = s3Service.presignImageUpload(request);
+
+        auditLogger.imageUploaded(
+                userDetails.getUsername(),
+                response.getS3Key()
+        );
+
         return ResponseEntity.ok(ApiResponse.success(
-                "Presigned URL generated. Upload image directly to uploadUrl.", response));
+                "Presigned URL generated. Upload image directly to uploadUrl.",
+                response));
     }
 
     // ─────────────────────────────────────────
@@ -92,6 +125,8 @@ public class UploadController {
             @RequestParam(defaultValue = "true") boolean isVideo) {
 
         StreamUrlResponse response = s3Service.generateStreamUrl(s3Key, isVideo);
-        return ResponseEntity.ok(ApiResponse.success("Stream URL generated.", response));
+
+        return ResponseEntity.ok(
+                ApiResponse.success("Stream URL generated.", response));
     }
 }

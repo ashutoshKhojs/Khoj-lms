@@ -1,5 +1,6 @@
 package com.khoj.lms.service.impl;
 
+import com.khoj.lms.audit.AuditLogger;
 import com.khoj.lms.dto.category.*;
 import com.khoj.lms.entity.Category;
 import com.khoj.lms.exception.BadRequestException;
@@ -22,13 +23,18 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final AuditLogger        auditLogger;
 
     // ================= PUBLIC =================
 
     @Override
     @Transactional(readOnly = true)
     public List<CategoryResponse> getAllWithChildren() {
+        log.debug("Fetching all root categories with children");
+
         List<Category> roots = categoryRepository.findRootCategories();
+
+        log.debug("Found {} root categories", roots.size());
 
         return roots.stream()
                 .map(this::toResponseWithChildren)
@@ -38,6 +44,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional(readOnly = true)
     public CategoryResponse getById(UUID id) {
+        log.debug("Fetching category by id={}", id);
+
         Category category = findOrThrow(id);
         return toResponseWithChildren(category);
     }
@@ -47,6 +55,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
+        log.info("Creating category: name='{}'", request.getName());
 
         String baseSlug = SlugUtil.toSlug(request.getName());
         String slug = SlugUtil.makeUnique(baseSlug,
@@ -55,9 +64,13 @@ public class CategoryServiceImpl implements CategoryService {
         Category parent = null;
 
         if (request.getParentId() != null) {
+            log.debug("Resolving parent category id={}", request.getParentId());
+
             parent = findOrThrow(request.getParentId());
 
             if (parent.getParent() != null) {
+                log.warn("Attempted to create nested sub-category under id={}",
+                        request.getParentId());
                 throw new BadRequestException(
                         "Only one level of sub-categories is supported.");
             }
@@ -68,14 +81,22 @@ public class CategoryServiceImpl implements CategoryService {
                 .slug(slug)
                 .description(request.getDescription())
                 .iconUrl(request.getIconUrl())
-                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
+                .displayOrder(request.getDisplayOrder() != null
+                        ? request.getDisplayOrder() : 0)
                 .parent(parent)
                 .isActive(true)
                 .build();
 
         category = categoryRepository.save(category);
 
-        log.info("Category created: {} ({})", category.getName(), category.getSlug());
+        log.info("Category created: id={} name='{}' slug='{}'",
+                category.getId(), category.getName(), category.getSlug());
+
+        auditLogger.adminAction(
+                "system",
+                "CATEGORY_CREATED: " + category.getName(),
+                null
+        );
 
         return toResponseWithChildren(category);
     }
@@ -83,17 +104,23 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public CategoryResponse update(UUID id, CategoryRequest request) {
+        log.info("Updating category id={} name='{}'", id, request.getName());
 
         Category category = findOrThrow(id);
+        String oldName = category.getName();
 
         if (!category.getName().equalsIgnoreCase(request.getName())) {
-            String baseSlug = SlugUtil.toSlug(request.getName());
+            log.debug("Category name changed '{}' → '{}', regenerating slug",
+                    oldName, request.getName());
 
+            String baseSlug = SlugUtil.toSlug(request.getName());
             String newSlug = SlugUtil.makeUnique(baseSlug,
                     s -> !s.equals(category.getSlug())
                             && categoryRepository.existsBySlugAndIsDeletedFalse(s));
 
             category.setSlug(newSlug);
+
+            log.debug("New slug generated: '{}'", newSlug);
         }
 
         category.setName(request.getName());
@@ -104,25 +131,47 @@ public class CategoryServiceImpl implements CategoryService {
             category.setDisplayOrder(request.getDisplayOrder());
         }
 
-        return toResponseWithChildren(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+
+        log.info("Category updated: id={} oldName='{}' newName='{}'",
+                id, oldName, saved.getName());
+
+        auditLogger.adminAction(
+                "system",
+                "CATEGORY_UPDATED: " + saved.getName(),
+                null
+        );
+
+        return toResponseWithChildren(saved);
     }
 
     @Override
     @Transactional
     public void delete(UUID id) {
+        log.info("Attempting to delete category id={}", id);
 
         Category category = findOrThrow(id);
 
         if (!category.getCourses().isEmpty()) {
+            log.warn("Delete blocked — category id={} name='{}' has {} courses",
+                    id, category.getName(), category.getCourses().size());
+
             throw new BadRequestException(
-                    "Cannot delete category with existing courses. Reassign courses first.");
+                    "Cannot delete category with existing courses. " +
+                            "Reassign courses first.");
         }
 
         category.softDelete();
-
         categoryRepository.save(category);
 
-        log.info("Category soft-deleted: {}", id);
+        log.info("Category soft-deleted: id={} name='{}'",
+                id, category.getName());
+
+        auditLogger.adminAction(
+                "system",
+                "CATEGORY_DELETED: " + category.getName(),
+                null
+        );
     }
 
     // ================= HELPERS =================
@@ -130,13 +179,13 @@ public class CategoryServiceImpl implements CategoryService {
     private Category findOrThrow(UUID id) {
         return categoryRepository.findById(id)
                 .filter(c -> !c.getIsDeleted())
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "id", id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Category", "id", id));
     }
 
     // ================= MAPPER =================
 
     private CategoryResponse toResponseWithChildren(Category c) {
-
         List<CategoryResponse> children = c.getChildren().stream()
                 .filter(ch -> !ch.getIsDeleted())
                 .map(ch -> CategoryResponse.builder()
