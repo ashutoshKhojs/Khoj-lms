@@ -16,7 +16,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -199,7 +198,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         course.setStatus(CourseStatus.PUBLISHED);
-        course.setPublishedAt(LocalDateTime.from(Instant.now()));
+        course.setPublishedAt(LocalDateTime.now());
         auditLogger.courseApproved(course.getTitle(), adminEmail);
 
         return toFullResponse(courseRepository.save(course));

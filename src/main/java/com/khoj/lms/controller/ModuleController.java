@@ -6,6 +6,7 @@ import com.khoj.lms.service.ModuleService;
 import com.khoj.lms.util.ApiRoutes;
 import com.khoj.lms.util.CurrentUser;
 import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class ModuleController {
     }
 
     @PostMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.CREATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> createModule(
             @PathVariable UUID courseId,
@@ -62,6 +64,7 @@ public class ModuleController {
     }
 
     @PutMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.UPDATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> updateModule(
             @PathVariable UUID id,
@@ -77,6 +80,7 @@ public class ModuleController {
     }
 
     @PatchMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.TOGGLE_PUBLISH)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ModuleResponse>> togglePublish(
             @PathVariable UUID id,
@@ -91,6 +95,7 @@ public class ModuleController {
     }
 
     @DeleteMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.DELETE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteModule(
             @PathVariable UUID id,
@@ -104,6 +109,7 @@ public class ModuleController {
     }
 
     @PatchMapping(ApiRoutes.Module.INSTRUCTOR_BASE + ApiRoutes.Module.REORDER)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> reorderModules(
             @Valid @RequestBody ModuleReorderRequest request,

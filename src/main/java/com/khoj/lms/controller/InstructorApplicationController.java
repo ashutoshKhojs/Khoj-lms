@@ -6,6 +6,7 @@ import com.khoj.lms.enums.ApplicationStatus;
 import com.khoj.lms.service.InstructorApplicationService;
 import com.khoj.lms.util.ApiRoutes;
 import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,7 @@ public class InstructorApplicationController {
     // ─────────────────────────────────────────
 
     @GetMapping(ApiRoutes.Instructor.ADMIN_BASE + ApiRoutes.Instructor.LIST)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<ApplicationResponse>>> listApplications(
             @RequestParam(required = false) ApplicationStatus status,
@@ -76,6 +78,7 @@ public class InstructorApplicationController {
     }
 
     @PatchMapping(ApiRoutes.Instructor.ADMIN_BASE + ApiRoutes.Instructor.APPROVE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> approve(
             @PathVariable UUID id,
@@ -90,6 +93,7 @@ public class InstructorApplicationController {
     }
 
     @PatchMapping(ApiRoutes.Instructor.ADMIN_BASE + ApiRoutes.Instructor.REJECT)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> reject(
             @PathVariable UUID id,

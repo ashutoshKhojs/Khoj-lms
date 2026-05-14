@@ -6,6 +6,7 @@ import com.khoj.lms.service.LessonService;
 import com.khoj.lms.util.ApiRoutes;
 import com.khoj.lms.util.CurrentUser;
 import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class LessonController {
     }
 
     @PostMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.CREATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> createLesson(
             @PathVariable UUID moduleId,
@@ -64,6 +66,7 @@ public class LessonController {
     }
 
     @PutMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.UPDATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> updateLesson(
             @PathVariable UUID id,
@@ -79,6 +82,7 @@ public class LessonController {
     }
 
     @PatchMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.TOGGLE_PUBLISH)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<LessonResponse>> togglePublish(
             @PathVariable UUID id,
@@ -93,6 +97,7 @@ public class LessonController {
     }
 
     @DeleteMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.DELETE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteLesson(
             @PathVariable UUID id,
@@ -106,6 +111,7 @@ public class LessonController {
     }
 
     @PatchMapping(ApiRoutes.Lesson.INSTRUCTOR_BASE + ApiRoutes.Lesson.REORDER)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> reorderLessons(
             @Valid @RequestBody LessonReorderRequest request,

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import java.util.List;
 import java.util.UUID;
@@ -55,6 +56,7 @@ public class CategoryController {
     // ADMIN
 
     @PostMapping(ApiRoutes.Category.ADMIN_BASE + ApiRoutes.Category.CREATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> create(
             @Valid @RequestBody CategoryRequest request) {
@@ -69,6 +71,7 @@ public class CategoryController {
     }
 
     @PutMapping(ApiRoutes.Category.ADMIN_BASE + ApiRoutes.Category.UPDATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CategoryResponse>> update(
             @PathVariable UUID id,
@@ -83,6 +86,7 @@ public class CategoryController {
     }
 
     @DeleteMapping(ApiRoutes.Category.ADMIN_BASE + ApiRoutes.Category.DELETE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
 

@@ -14,7 +14,7 @@ import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import java.util.UUID;
 
 @RestController
@@ -79,6 +79,7 @@ public class CourseController {
     // ─────────────────────────────────────────
 
     @GetMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.INSTRUCTOR_LIST)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<InstructorCourseView>>> getMyCoursesAsInstructor(
             @CurrentUser UserDetails user,
@@ -96,6 +97,7 @@ public class CourseController {
     }
 
     @PostMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.CREATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> createCourse(
             @Valid @RequestBody CourseRequest request,
@@ -111,6 +113,7 @@ public class CourseController {
     }
 
     @PutMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.UPDATE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> updateCourse(
             @PathVariable UUID id,
@@ -126,6 +129,7 @@ public class CourseController {
     }
 
     @PostMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.SUBMIT)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> submitForReview(
             @PathVariable UUID id,
@@ -140,6 +144,7 @@ public class CourseController {
     }
 
     @DeleteMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.DELETE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteCourse(
             @PathVariable UUID id,
@@ -157,6 +162,7 @@ public class CourseController {
     // ─────────────────────────────────────────
 
     @GetMapping(ApiRoutes.Course.ADMIN_BASE + ApiRoutes.Course.ADMIN_LIST)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<CourseSummary>>> getAllCoursesAdmin(
             @RequestParam(required = false) CourseStatus status,
@@ -174,6 +180,7 @@ public class CourseController {
     }
 
     @PatchMapping(ApiRoutes.Course.ADMIN_BASE + ApiRoutes.Course.APPROVE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> approveCourse(
             @PathVariable UUID id,
@@ -188,6 +195,7 @@ public class CourseController {
     }
 
     @PatchMapping(ApiRoutes.Course.ADMIN_BASE + ApiRoutes.Course.REJECT)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> rejectCourse(
             @PathVariable UUID id,
@@ -203,6 +211,7 @@ public class CourseController {
     }
 
     @PatchMapping(ApiRoutes.Course.ADMIN_BASE + ApiRoutes.Course.ARCHIVE)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<CourseResponse>> archiveCourse(@PathVariable UUID id) {
 

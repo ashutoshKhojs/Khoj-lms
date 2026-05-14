@@ -6,6 +6,7 @@ import com.khoj.lms.dto.s3.S3Dtos.*;
 import com.khoj.lms.service.S3Service;
 import com.khoj.lms.util.ApiRoutes;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,9 @@ public class UploadController {
     // Video — get presigned upload URL
     // ─────────────────────────────────────────
 
+
     @PostMapping(ApiRoutes.Upload.VIDEO_PRESIGN)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Get presigned URL to upload lesson video directly to S3")
     public ResponseEntity<ApiResponse<PresignResponse>> presignVideoUpload(
@@ -52,6 +55,7 @@ public class UploadController {
     // ─────────────────────────────────────────
 
     @PostMapping(ApiRoutes.Upload.COMPLETE_MULTIPART)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Complete multipart upload after all parts uploaded")
     public ResponseEntity<ApiResponse<Void>> completeMultipart(
@@ -74,6 +78,7 @@ public class UploadController {
     // ─────────────────────────────────────────
 
     @PostMapping(ApiRoutes.Upload.ABORT_MULTIPART)
+    @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Abort multipart upload and clean up S3")
     public ResponseEntity<ApiResponse<Void>> abortMultipart(
