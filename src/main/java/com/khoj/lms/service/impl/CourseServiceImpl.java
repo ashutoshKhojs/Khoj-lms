@@ -68,13 +68,13 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<InstructorCourseView> getInstructorCourses(
+    public Page<CourseResponse> getInstructorCourses(
             String instructorEmail, Pageable pageable) {
 
         User instructor = findUserByEmail(instructorEmail);
         return courseRepository
                 .findByInstructor(instructor.getId(), pageable)
-                .map(this::toInstructorView);
+                .map(this::toFullResponse);
     }
 
     @Override

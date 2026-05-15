@@ -84,7 +84,7 @@ public class CourseController {
     @SecurityRequirement(name = "bearerAuth")
     @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Instructor — list own courses (all statuses)")
-    public ResponseEntity<ApiResponse<Page<InstructorCourseView>>> getMyCoursesAsInstructor(
+    public ResponseEntity<ApiResponse<Page<CourseResponse>>> getMyCoursesAsInstructor(
             @CurrentUser UserDetails user,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {

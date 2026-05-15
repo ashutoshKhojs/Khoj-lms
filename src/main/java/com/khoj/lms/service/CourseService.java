@@ -15,7 +15,7 @@ public interface CourseService {
     CourseResponse getCourseBySlug(String slug);
 
     // INSTRUCTOR
-    Page<InstructorCourseView> getInstructorCourses(String instructorEmail, Pageable pageable);
+    Page<CourseResponse> getInstructorCourses(String instructorEmail, Pageable pageable);
     CourseResponse getInstructorCourseById(UUID courseId, String instructorEmail); // ← NEW
     CourseResponse createCourse(CourseRequest request, String instructorEmail);
     CourseResponse updateCourse(UUID courseId, CourseRequest request, String instructorEmail);
