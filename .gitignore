@@ -8,6 +8,10 @@ target/
 # Maven wrapper
 .mvn/wrapper/maven-wrapper.jar
 
+# Logs
+logs/
+*.log
+
 # Application config (ignore sensitive/local configs)
 src/main/resources/application.yaml
 src/main/resources/application.properties

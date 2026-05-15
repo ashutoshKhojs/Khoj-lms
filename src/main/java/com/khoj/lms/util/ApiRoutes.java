@@ -58,46 +58,49 @@ public final class ApiRoutes {
     public static final class Course {
 
         // PUBLIC
-        public static final String BASE = "/courses";
-
-        public static final String LIST = "";
-        public static final String GET_BY_SLUG = "/{slug}";
+        public static final String BASE         = "/courses";
+        public static final String LIST         = "";
+        public static final String GET_BY_SLUG  = "/{slug}";
 
         // INSTRUCTOR
-        public static final String INSTRUCTOR_BASE = "/instructor/courses";
-
-        public static final String INSTRUCTOR_LIST = "";
-        public static final String CREATE = "";
-        public static final String UPDATE = "/{id}";
-        public static final String SUBMIT = "/{id}/submit";
-        public static final String DELETE = "/{id}";
+        public static final String INSTRUCTOR_BASE  = "/instructor/courses";
+        public static final String INSTRUCTOR_LIST  = "";
+        public static final String INSTRUCTOR_GET   = "/{id}";      // ← NEW
+        public static final String CREATE           = "";
+        public static final String UPDATE           = "/{id}";
+        public static final String SUBMIT           = "/{id}/submit";
+        public static final String DELETE           = "/{id}";
 
         // ADMIN
-        public static final String ADMIN_BASE = "/admin/courses";
-
-        public static final String ADMIN_LIST = "";
-        public static final String APPROVE = "/{id}/approve";
-        public static final String REJECT = "/{id}/reject";
-        public static final String ARCHIVE = "/{id}/archive";
+        public static final String ADMIN_BASE   = "/admin/courses";
+        public static final String ADMIN_LIST   = "";
+        public static final String ADMIN_GET    = "/{id}";           // ← NEW
+        public static final String APPROVE      = "/{id}/approve";
+        public static final String REJECT       = "/{id}/reject";
+        public static final String ARCHIVE      = "/{id}/archive";
     }
 
 
     public static final class Module {
 
         // PUBLIC
-        public static final String BASE = "/modules";
-
+        public static final String BASE          = "/modules";
         public static final String GET_BY_COURSE = "/course/{courseId}";
-        public static final String GET_BY_ID = "/{id}";
+        public static final String GET_BY_ID     = "/{id}";
 
         // INSTRUCTOR
-        public static final String INSTRUCTOR_BASE = "/instructor/modules";
+        public static final String INSTRUCTOR_BASE    = "/instructor/modules";
+        public static final String CREATE             = "/course/{courseId}";
+        public static final String UPDATE             = "/{id}";
+        public static final String TOGGLE_PUBLISH     = "/{id}/toggle-publish";
+        public static final String DELETE             = "/{id}";
+        public static final String REORDER            = "/reorder";
 
-        public static final String CREATE = "/course/{courseId}";
-        public static final String UPDATE = "/{id}";
-        public static final String TOGGLE_PUBLISH = "/{id}/toggle-publish";
-        public static final String DELETE = "/{id}";
-        public static final String REORDER = "/reorder";
+        // ADMIN
+        public static final String ADMIN_BASE         = "/admin/modules";
+        public static final String ADMIN_GET_BY_COURSE = "/course/{courseId}";
+        public static final String ADMIN_TOGGLE_PUBLISH = "/{id}/toggle-publish";
+        public static final String ADMIN_DELETE        = "/{id}";
     }
 
     public static final class Category {

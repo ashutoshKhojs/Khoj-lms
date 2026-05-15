@@ -22,8 +22,10 @@ public class CourseSummary {
     private Boolean isFree;
     private BigDecimal price;
     private Integer enrolledCount;
+    private Integer ratingCount;
     private BigDecimal averageRating;
     private Integer totalLessons;
+    private Integer totalModules;
     private Long totalDurationSeconds;
     private CourseStatus status;
 }

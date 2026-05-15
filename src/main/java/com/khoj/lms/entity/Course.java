@@ -10,7 +10,9 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A course on the Khoj LMS platform.
@@ -187,11 +189,11 @@ public class Course extends BaseEntity {
     // Relations
     // ─────────────────────────────────────────
 
-    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, fetch = FetchType.LAZY,
-            orphanRemoval = true)
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL,
+            fetch = FetchType.LAZY, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default
-    private List<Module> modules = new ArrayList<>();
+    private Set<Module> modules = new LinkedHashSet<>();
 
     @OneToMany(mappedBy = "course", fetch = FetchType.LAZY)
     @Builder.Default

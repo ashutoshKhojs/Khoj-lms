@@ -10,26 +10,32 @@ import java.util.UUID;
 
 public interface ModuleService {
 
-    // READ
+    // READ — PUBLIC
     List<ModuleResponse> getModulesByCourse(UUID courseId);
-
     ModuleResponse getById(UUID moduleId);
 
-    // WRITE
-    ModuleResponse createModule(UUID courseId, ModuleRequest request, String instructorEmail);
+    // READ — INSTRUCTOR/ADMIN (sees unpublished too)
+    List<ModuleResponse> getModulesByCourseForInstructor(UUID courseId,
+                                                         String instructorEmail);
 
-    ModuleResponse updateModule(UUID moduleId, ModuleRequest request, String instructorEmail);
-
+    // WRITE — INSTRUCTOR
+    ModuleResponse createModule(UUID courseId, ModuleRequest request,
+                                String instructorEmail);
+    ModuleResponse updateModule(UUID moduleId, ModuleRequest request,
+                                String instructorEmail);
     ModuleResponse togglePublish(UUID moduleId, String instructorEmail);
-
     void deleteModule(UUID moduleId, String instructorEmail);
-
     void reorderModules(ModuleReorderRequest request, String instructorEmail);
+
+    // WRITE — ADMIN
+    ModuleResponse adminTogglePublish(UUID moduleId);
+    void adminDeleteModule(UUID moduleId);
 
     // INTERNAL
     void recalculateModuleStats(UUID moduleId);
-
     void recalculateCourseStats(UUID courseId);
-
     Module findOrThrow(UUID id);
+
+    // ADMIN — view any course modules without ownership check
+    List<ModuleResponse> adminGetModulesByCourse(UUID courseId);
 }

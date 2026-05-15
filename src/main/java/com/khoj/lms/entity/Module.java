@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A module groups related lessons within a course.
@@ -84,5 +86,5 @@ public class Module extends BaseEntity {
             fetch = FetchType.LAZY, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default
-    private List<Lesson> lessons = new ArrayList<>();
+    private Set<Lesson> lessons = new LinkedHashSet<>();
 }

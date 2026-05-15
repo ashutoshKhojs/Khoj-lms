@@ -16,22 +16,23 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface CourseRepository extends JpaRepository<Course, UUID>, JpaSpecificationExecutor<Course> {
+public interface CourseRepository extends JpaRepository<Course, UUID>,
+        JpaSpecificationExecutor<Course> {
 
     Optional<Course> findBySlugAndIsDeletedFalse(String slug);
 
     boolean existsBySlugAndIsDeletedFalse(String slug);
 
-    // ─── Public listing — only PUBLISHED, not deleted ───────────────────
+    // ─── Public listing ──────────────────────────────────────────────────
     @Query("""
         SELECT c FROM Course c
         WHERE c.isDeleted = false
           AND c.status = 'PUBLISHED'
-          AND (:search    IS NULL OR LOWER(c.title) LIKE LOWER(CONCAT('%', :search, '%')))
-          AND (:catId     IS NULL OR c.category.id = :catId)
-          AND (:diff      IS NULL OR c.difficultyLevel = :diff)
-          AND (:language  IS NULL OR LOWER(c.language) = LOWER(:language))
-          AND (:isFree    IS NULL OR c.isFree = :isFree)
+          AND (:search   IS NULL OR LOWER(c.title) LIKE LOWER(CONCAT('%', :search, '%')))
+          AND (:catId    IS NULL OR c.category.id  = :catId)
+          AND (:diff     IS NULL OR c.difficultyLevel = :diff)
+          AND (:language IS NULL OR LOWER(c.language) = LOWER(:language))
+          AND (:isFree   IS NULL OR c.isFree = :isFree)
         """)
     Page<Course> findPublished(
             @Param("search")   String search,
@@ -42,30 +43,34 @@ public interface CourseRepository extends JpaRepository<Course, UUID>, JpaSpecif
             Pageable pageable
     );
 
-    // ─── Instructor's own courses (all statuses) ─────────────────────────
+    // ─── Instructor's own courses ─────────────────────────────────────────
     @Query("""
         SELECT c FROM Course c
         WHERE c.instructor.id = :instructorId
           AND c.isDeleted = false
         """)
-    Page<Course> findByInstructor(@Param("instructorId") UUID instructorId, Pageable pageable);
+    Page<Course> findByInstructor(
+            @Param("instructorId") UUID instructorId,
+            Pageable pageable);
 
-    // ─── Admin — all courses with optional status filter ─────────────────
+    // ─── Admin — all courses with optional status filter ──────────────────
     @Query("""
         SELECT c FROM Course c
         WHERE c.isDeleted = false
           AND (:status IS NULL OR c.status = :status)
         """)
-    Page<Course> findAllForAdmin(@Param("status") CourseStatus status, Pageable pageable);
+    Page<Course> findAllForAdmin(
+            @Param("status") CourseStatus status,
+            Pageable pageable);
 
-    // ─── Denormalized stats update (avoids loading full entity) ──────────
+    // ─── Stats update ─────────────────────────────────────────────────────
     @Modifying
     @Query("""
         UPDATE Course c
-        SET c.totalModules = :modules,
-            c.totalLessons = :lessons,
+        SET c.totalModules        = :modules,
+            c.totalLessons        = :lessons,
             c.totalDurationSeconds = :duration,
-            c.updatedAt = CURRENT_TIMESTAMP
+            c.updatedAt           = CURRENT_TIMESTAMP
         WHERE c.id = :id
         """)
     void updateStats(
@@ -82,4 +87,30 @@ public interface CourseRepository extends JpaRepository<Course, UUID>, JpaSpecif
     @Modifying
     @Query("UPDATE Course c SET c.completionCount = c.completionCount + 1 WHERE c.id = :id")
     void incrementCompletionCount(@Param("id") UUID id);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // FIXED — fetch modules only (NOT lessons simultaneously)
+    // Lessons load lazily inside the @Transactional service method.
+    // This avoids MultipleBagFetchException / Cartesian product issues.
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Query("""
+        SELECT DISTINCT c FROM Course c
+        LEFT JOIN FETCH c.modules m
+        LEFT JOIN FETCH c.category
+        LEFT JOIN FETCH c.instructor
+        WHERE c.slug = :slug
+          AND c.isDeleted = false
+        """)
+    Optional<Course> findBySlugWithModules(@Param("slug") String slug);
+
+    @Query("""
+        SELECT DISTINCT c FROM Course c
+        LEFT JOIN FETCH c.modules m
+        LEFT JOIN FETCH c.category
+        LEFT JOIN FETCH c.instructor
+        WHERE c.id = :id
+          AND c.isDeleted = false
+        """)
+    Optional<Course> findByIdWithModules(@Param("id") UUID id);
 }
