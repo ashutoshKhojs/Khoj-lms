@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -23,6 +24,9 @@ public class EmailServiceImpl implements EmailService {
 
     // =========================================================
     // COMMON SEND METHOD
+    // Stays private — called only from this class's public @Async methods.
+    // Failures are logged loudly but NEVER rethrown, because rethrowing on a
+    // background thread serves no purpose (no caller is listening).
     // =========================================================
 
     private void sendHtmlEmail(
@@ -57,21 +61,21 @@ public class EmailServiceImpl implements EmailService {
             mailSender.send(message);
 
             log.info(
-                    "Email sent successfully to {} using template {}",
+                    "Email sent successfully to {} using template {} on thread {}",
                     toEmail,
-                    templateName
+                    templateName,
+                    Thread.currentThread().getName()
             );
 
         } catch (Exception e) {
 
+            // ❌ Do NOT rethrow — we are on a background thread.
+            // ✅ Log loudly so it shows up in error log + monitoring.
             log.error(
-                    "Failed to send email to {}",
+                    "Failed to send email to {} (template={}): {}",
                     toEmail,
-                    e
-            );
-
-            throw new RuntimeException(
-                    "Failed to send email",
+                    templateName,
+                    e.getMessage(),
                     e
             );
         }
@@ -82,6 +86,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendOtpEmail(
             String toEmail,
             String toName,
@@ -107,6 +112,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendWelcomeEmail(
             String toEmail,
             String toName
@@ -129,6 +135,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendPasswordResetEmail(
             String toEmail,
             String toName,
@@ -153,6 +160,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendInstructorApprovedEmail(
             String toEmail,
             String toName
@@ -175,6 +183,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendInstructorRejectedEmail(
             String toEmail,
             String toName,
@@ -199,6 +208,7 @@ public class EmailServiceImpl implements EmailService {
     // =========================================================
 
     @Override
+    @Async("emailTaskExecutor")
     public void sendCoursePublishedEmail(
             String toEmail,
             String instructorName,
@@ -221,6 +231,33 @@ public class EmailServiceImpl implements EmailService {
                 toEmail,
                 "Course Published Successfully",
                 "course-published",
+                context
+        );
+    }
+
+    // =========================================================
+    // COURSE ENROLLMENT
+    // =========================================================
+
+    @Override
+    @Async("emailTaskExecutor")
+    public void sendCourseEnrollmentEmail(
+            String toEmail,
+            String studentName,
+            String courseTitle,
+            String instructorName
+    ) {
+
+        Context context = new Context();
+
+        context.setVariable("name", studentName);
+        context.setVariable("courseTitle", courseTitle);
+        context.setVariable("instructorName", instructorName);
+
+        sendHtmlEmail(
+                toEmail,
+                "Course Enrollment Successful",
+                "course-enrollment",
                 context
         );
     }

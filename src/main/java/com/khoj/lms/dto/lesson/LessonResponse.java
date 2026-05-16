@@ -30,6 +30,10 @@ public class LessonResponse {
     // TEXT
     private String textContent;
 
+    // QUIZ / ASSIGNMENT references
+    private UUID quizId;
+    private UUID assignmentId;
+
     // Navigation
     private UUID previousLessonId;
     private UUID nextLessonId;

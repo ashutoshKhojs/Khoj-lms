@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -142,80 +143,7 @@ public class GlobalExceptionHandler {
     }
 
     // ─────────────────────────────────────────
-    // Auth Failed — 401
-    // LOGS TO: main log + AUDIT LOG ✅
-    // Someone tried to access with bad/expired token
-    // ─────────────────────────────────────────
-
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAuth(
-            AuthenticationException ex) {
-
-        log.warn("Authentication failed — {}", ex.getMessage());
-
-        // ✅ AUDIT — authentication failure is a security event
-        auditLogger.loginFailed(
-                "unknown",          // email not available at this point
-                "unknown",          // IP tracked by RequestLoggingFilter MDC
-                0
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    // ─────────────────────────────────────────
-    // Access Denied (custom) — 403
-    // LOGS TO: main log + AUDIT LOG ✅
-    // Someone tried to touch a resource they don't own
-    // ─────────────────────────────────────────
-
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(
-            AccessDeniedException ex) {
-
-        log.warn("Access denied — {}", ex.getMessage());
-
-        // ✅ AUDIT — ownership violation is a security event
-        auditLogger.suspiciousActivity(
-                "unknown",
-                "unknown",
-                "ACCESS_DENIED: " + ex.getMessage()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ex.getMessage()));
-    }
-
-    // ─────────────────────────────────────────
-    // Spring Security — Access Denied
-    // LOGS TO: main log + AUDIT LOG ✅
-    // @PreAuthorize failure — wrong role trying restricted endpoint
-    // ─────────────────────────────────────────
-
-    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
-    public ResponseEntity<ApiResponse<Void>> handleSpringAccessDenied(
-            org.springframework.security.access.AccessDeniedException ex) {
-
-        log.warn("Spring Security access denied — {}", ex.getMessage());
-
-        // ✅ AUDIT — role violation attempt is a security event
-        auditLogger.suspiciousActivity(
-                "unknown",
-                "unknown",
-                "ROLE_VIOLATION: " + ex.getMessage()
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(
-                        "You don't have permission to perform this action."));
-    }
-
-    // ─────────────────────────────────────────
-    // Spring Security — Bad Credentials
+    // Spring Security — Bad Credentials (most specific first)
     // LOGS TO: main log + AUDIT LOG ✅
     // Wrong password attempt
     // ─────────────────────────────────────────
@@ -237,7 +165,6 @@ public class GlobalExceptionHandler {
     // ─────────────────────────────────────────
     // Spring Security — Account Locked
     // LOGS TO: main log + AUDIT LOG ✅
-    // Locked account being accessed
     // ─────────────────────────────────────────
 
     @ExceptionHandler(LockedException.class)
@@ -246,7 +173,6 @@ public class GlobalExceptionHandler {
 
         log.warn("Locked account access attempt — {}", ex.getMessage());
 
-        // ✅ AUDIT — accessing locked account is a security event
         auditLogger.suspiciousActivity(
                 "unknown",
                 "unknown",
@@ -270,7 +196,6 @@ public class GlobalExceptionHandler {
 
         log.warn("Disabled account access attempt — {}", ex.getMessage());
 
-        // ✅ AUDIT — accessing disabled account is a security event
         auditLogger.suspiciousActivity(
                 "unknown",
                 "unknown",
@@ -281,6 +206,93 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error(
                         "Your account has been disabled. Please contact support."));
+    }
+
+    // ─────────────────────────────────────────
+    // Custom AuthenticationException — 401
+    // LOGS TO: main log + AUDIT LOG ✅
+    // (Generic fallback for non-Spring auth issues)
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAuth(
+            AuthenticationException ex) {
+
+        log.warn("Authentication failed — {}", ex.getMessage());
+
+        auditLogger.loginFailed("unknown", "unknown", 0);
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Custom Access Denied — 403
+    // LOGS TO: main log + AUDIT LOG ✅
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(
+            AccessDeniedException ex) {
+
+        log.warn("Access denied — {}", ex.getMessage());
+
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "ACCESS_DENIED: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
+    // ─────────────────────────────────────────
+    // Spring Security — Access Denied
+    // LOGS TO: main log + AUDIT LOG ✅
+    // @PreAuthorize failure — wrong role trying restricted endpoint
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleSpringAccessDenied(
+            org.springframework.security.access.AccessDeniedException ex) {
+
+        log.warn("Spring Security access denied — {}", ex.getMessage());
+
+        auditLogger.suspiciousActivity(
+                "unknown",
+                "unknown",
+                "ROLE_VIOLATION: " + ex.getMessage()
+        );
+
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse.error(
+                        "You don't have permission to perform this action."));
+    }
+
+    // ─────────────────────────────────────────
+    // Mail Exception — SMTP failures (defensive)
+    // LOGS TO: error log — NEVER bubble SMTP details to client
+    //
+    // Emails are normally @Async (background thread, never reach this handler).
+    // This is a safety net in case someone calls a mail method synchronously
+    // in the future, OR if @Async submission itself fails inside a request.
+    // ─────────────────────────────────────────
+
+    @ExceptionHandler(MailException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMail(MailException ex) {
+
+        log.error("Mail send failure — type={} message={}",
+                ex.getClass().getSimpleName(), ex.getMessage(), ex);
+
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(
+                        "Email delivery failed. Your action was completed " +
+                                "but the notification email could not be sent."));
     }
 
     // ─────────────────────────────────────────

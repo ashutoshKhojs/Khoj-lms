@@ -7,4 +7,10 @@ public interface EmailService {
     void sendInstructorApprovedEmail(String toEmail, String toName);
     void sendInstructorRejectedEmail(String toEmail, String toName, String reason);
     void sendCoursePublishedEmail(String toEmail, String instructorName, String courseTitle);
+    void sendCourseEnrollmentEmail(
+            String toEmail,
+            String studentName,
+            String courseTitle,
+            String instructorName
+    );
 }

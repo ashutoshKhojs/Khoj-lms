@@ -8,12 +8,28 @@ import java.util.UUID;
 
 public interface LessonService {
 
-    // READ
+    // ───── READ — PUBLIC (published lessons of published courses only) ─────
     List<LessonSummary> getLessonsByModule(UUID moduleId);
+
+    List<LessonSummary> getLessonsByCourse(UUID courseId);
 
     LessonResponse getLessonById(UUID lessonId);
 
-    // WRITE
+    // ───── READ — INSTRUCTOR (sees own drafts too) ─────
+    List<LessonSummary> getLessonsByModuleForInstructor(UUID moduleId, String instructorEmail);
+
+    List<LessonSummary> getLessonsByCourseForInstructor(UUID courseId, String instructorEmail);
+
+    LessonResponse getLessonByIdForInstructor(UUID lessonId, String instructorEmail);
+
+    // ───── READ — ADMIN (sees everything) ─────
+    List<LessonSummary> adminGetLessonsByModule(UUID moduleId);
+
+    List<LessonSummary> adminGetLessonsByCourse(UUID courseId);
+
+    LessonResponse adminGetLessonById(UUID lessonId);
+
+    // ───── WRITE — INSTRUCTOR ─────
     LessonResponse createLesson(UUID moduleId, LessonRequest request, String instructorEmail);
 
     LessonResponse updateLesson(UUID lessonId, LessonRequest request, String instructorEmail);
@@ -24,6 +40,11 @@ public interface LessonService {
 
     void reorderLessons(LessonReorderRequest request, String instructorEmail);
 
-    // INTERNAL
+    // ───── WRITE — ADMIN ─────
+    LessonResponse adminTogglePublish(UUID lessonId);
+
+    void adminDeleteLesson(UUID lessonId);
+
+    // ───── INTERNAL ─────
     Lesson findOrThrow(UUID id);
 }
