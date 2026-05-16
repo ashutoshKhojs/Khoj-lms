@@ -145,11 +145,30 @@ public class EmailServiceImpl implements EmailService {
         Context context = new Context();
 
         context.setVariable("name", toName);
-        context.setVariable("resetToken", resetToken);
+
+        context.setVariable(
+                "resetToken",
+                resetToken
+        );
+
+//        context.setVariable(
+//                "resetLink",
+//                resetLink
+//        );
+
+        context.setVariable(
+                "expiryMins",
+                30
+        );
+
+        context.setVariable(
+                "year",
+                java.time.Year.now().getValue()
+        );
 
         sendHtmlEmail(
                 toEmail,
-                "Password Reset",
+                "Reset Your Password",
                 "password-reset",
                 context
         );
