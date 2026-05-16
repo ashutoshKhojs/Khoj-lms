@@ -170,6 +170,25 @@ public class CourseController {
                 ApiResponse.success("Course deleted successfully"));
     }
 
+    @PatchMapping(ApiRoutes.Course.INSTRUCTOR_BASE + ApiRoutes.Course.PUBLISHED_UPDATE)
+    @SecurityRequirement(name = "bearerAuth")
+    @PreAuthorize("hasRole('INSTRUCTOR') or hasRole('ADMIN')")
+    @Operation(
+            summary = "Update cosmetic fields of a PUBLISHED course",
+            description = "Allowed: thumbnail, descriptions, prerequisites, target audience, tags, preview video. " +
+                    "Locked: title, slug, price, isFree, category, difficulty, certificate settings."
+    )
+    public ResponseEntity<ApiResponse<CourseResponse>> updatePublishedCourse(
+            @PathVariable UUID id,
+            @Valid @RequestBody PublishedCourseUpdateRequest request,
+            @CurrentUser UserDetails user) {
+
+        return ResponseEntity.ok(ApiResponse.success(
+                "Course updated successfully",
+                courseService.updatePublishedCourse(id, request, user.getUsername())
+        ));
+    }
+
     // ─────────────────────────────────────────
     // ADMIN ENDPOINTS
     // ─────────────────────────────────────────

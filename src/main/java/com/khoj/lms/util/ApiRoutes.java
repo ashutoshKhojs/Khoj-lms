@@ -80,6 +80,7 @@ public final class ApiRoutes {
         public static final String UPDATE           = "/{id}";
         public static final String SUBMIT           = "/{id}/submit";
         public static final String DELETE           = "/{id}";
+        public static final String PUBLISHED_UPDATE      = "/{id}/published-update";   // ← NEW
 
         // ADMIN
         public static final String ADMIN_BASE   = "/admin/courses";

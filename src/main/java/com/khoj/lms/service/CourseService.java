@@ -32,4 +32,12 @@ public interface CourseService {
     // INTERNAL
     void recalculateStats(UUID courseId);
     Course findCourseOrThrow(UUID id);
+
+    /**
+     * Limited update for PUBLISHED courses — only cosmetic fields (thumbnail,
+     * descriptions, tags, etc). Title/price/category/etc are locked.
+     */
+    CourseResponse updatePublishedCourse(UUID courseId,
+                                         PublishedCourseUpdateRequest request,
+                                         String instructorEmail);
 }

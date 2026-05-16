@@ -160,11 +160,19 @@ public class CourseServiceImpl implements CourseService {
         assertInstructorOwns(course, instructorEmail);
 
         // Only DRAFT or REJECTED courses can be fully edited
-        if (course.getStatus() == CourseStatus.PUBLISHED ||
-                course.getStatus() == CourseStatus.PENDING) {
+        if (course.getStatus() == CourseStatus.PUBLISHED) {
             throw new BadRequestException(
-                    "Published or pending courses cannot be edited. " +
-                            "Archive it first or wait for rejection.");
+                    "Cannot perform full edit on a PUBLISHED course. " +
+                            "Use PATCH /instructor/courses/{id}/published-update for cosmetic edits " +
+                            "(thumbnail, description, tags, price), or archive the course to make structural changes.");
+        }
+        if (course.getStatus() == CourseStatus.PENDING) {
+            throw new BadRequestException(
+                    "Course is under admin review. Wait for approval or rejection before editing.");
+        }
+        if (course.getStatus() == CourseStatus.ARCHIVED) {
+            throw new BadRequestException(
+                    "Cannot edit an ARCHIVED course.");
         }
 
         // ✅ Update ALL fields from request — null-safe
@@ -402,6 +410,111 @@ public class CourseServiceImpl implements CourseService {
                         new ResourceNotFoundException("Course", "id", id));
     }
 
+    @Override
+    @Transactional
+    public CourseResponse updatePublishedCourse(UUID courseId,
+                                                PublishedCourseUpdateRequest request,
+                                                String instructorEmail) {
+
+        log.info("Updating PUBLISHED course (cosmetic-only): id={} instructor={}",
+                courseId, instructorEmail);
+
+        Course course = courseRepository
+                .findByIdWithModules(courseId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Course", "id", courseId));
+
+        assertInstructorOwns(course, instructorEmail);
+
+        // Only PUBLISHED courses use this endpoint
+        if (course.getStatus() != CourseStatus.PUBLISHED) {
+            throw new BadRequestException(
+                    "This endpoint is for PUBLISHED courses only. " +
+                            "Use PUT /instructor/courses/{id} for DRAFT/REJECTED courses.");
+        }
+
+        // ─── Track what changed (for audit) ───
+        var changed = new java.util.ArrayList<String>();
+
+        if (request.getShortDescription() != null
+                && !java.util.Objects.equals(course.getShortDescription(), request.getShortDescription())) {
+            course.setShortDescription(request.getShortDescription());
+            changed.add("shortDescription");
+        }
+
+        if (request.getDescription() != null
+                && !java.util.Objects.equals(course.getDescription(), request.getDescription())) {
+            course.setDescription(request.getDescription());
+            changed.add("description");
+        }
+
+        if (request.getWhatYouWillLearn() != null
+                && !java.util.Objects.equals(course.getWhatYouWillLearn(), request.getWhatYouWillLearn())) {
+            course.setWhatYouWillLearn(request.getWhatYouWillLearn());
+            changed.add("whatYouWillLearn");
+        }
+
+        if (request.getPrerequisites() != null
+                && !java.util.Objects.equals(course.getPrerequisites(), request.getPrerequisites())) {
+            course.setPrerequisites(request.getPrerequisites());
+            changed.add("prerequisites");
+        }
+
+        if (request.getTargetAudience() != null
+                && !java.util.Objects.equals(course.getTargetAudience(), request.getTargetAudience())) {
+            course.setTargetAudience(request.getTargetAudience());
+            changed.add("targetAudience");
+        }
+
+        if (request.getThumbnailUrl() != null
+                && !java.util.Objects.equals(course.getThumbnailUrl(), request.getThumbnailUrl())) {
+            course.setThumbnailUrl(request.getThumbnailUrl());
+            changed.add("thumbnailUrl");
+        }
+
+        if (request.getPreviewVideoUrl() != null
+                && !java.util.Objects.equals(course.getPreviewVideoUrl(), request.getPreviewVideoUrl())) {
+            course.setPreviewVideoUrl(request.getPreviewVideoUrl());
+            changed.add("previewVideoUrl");
+        }
+
+        if (request.getTags() != null
+                && !java.util.Objects.equals(course.getTags(), request.getTags())) {
+            course.setTags(request.getTags());
+            changed.add("tags");
+        }
+
+        if (request.getPrice() != null
+                && !java.util.Objects.equals(course.getPrice(), request.getPrice())) {
+            course.setPrice(request.getPrice());
+            changed.add("price");
+        }
+
+        if (changed.isEmpty()) {
+            log.info("No-op update — no fields changed: courseId={} instructor={}",
+                    courseId, instructorEmail);
+            return toFullResponse(course);
+        }
+
+
+
+        courseRepository.save(course);
+
+        log.info("PUBLISHED course updated: id={} title='{}' instructor={} fields={}",
+                courseId, course.getTitle(), instructorEmail, changed);
+
+        // ✅ Audit — edits to PUBLISHED courses are watched events
+        auditLogger.adminAction(
+                instructorEmail,
+                "PUBLISHED_COURSE_EDITED: " + course.getTitle() + " fields=" + changed,
+                null
+        );
+
+        return toFullResponse(
+                courseRepository.findByIdWithModules(courseId)
+                        .orElse(course)
+        );
+    }
     // ================= HELPERS =================
 
     private User findUserByEmail(String email) {
